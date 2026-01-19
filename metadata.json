@@ -1,0 +1,5 @@
+{
+  "name": "IoT Smart Environmental Monitoring Solution",
+  "description": "A high-end IoT dashboard for monitoring environmental sensors, managing hubs, and tracking alerts across multiple store locations.",
+  "requestFramePermissions": []
+}
