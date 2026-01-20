@@ -1,0 +1,72 @@
+DANH SÁCH API CẦN TRIỂN KHAI CHO DỰ ÁN SWD392 (FE)
+
+Dựa trên cấu trúc frontend hiện tại (React/Vite), dưới đây là các API cần thiết để thay thế dữ liệu giả (mock data):
+
+1. Authentication (Xác thực & Phân quyền)
+   - POST /api/auth/login
+     - Input: email, password
+     - Output: token (JWT), user info (id, email, name, role)
+   - POST /api/auth/register
+     - Input: email, password, name
+     - Output: message success/error
+   - POST /api/auth/logout
+     - Xử lý đăng xuất (nếu cần phía server)
+   - GET /api/auth/me
+     - Lấy thông tin user hiện tại từ token (dùng để persist session)
+
+2. Quản lý Sites (Địa điểm - SitesPage)
+   - GET /api/sites
+     - Lấy danh sách sites.
+     - Hỗ trợ filter: ?search={term}
+   - POST /api/sites
+     - Tạo site mới.
+     - Body: { org, name, hubs_count, ... }
+   - PUT /api/sites/{id}
+     - Cập nhật thông tin site.
+   - DELETE /api/sites/{id}
+     - Xóa site.
+
+3. Quản lý Hubs (Thiết bị trung tâm - HubsPage)
+   - GET /api/hubs
+     - Lấy danh sách hubs.
+     - Filter: ?site_id={id} (Lấy hubs thuộc site nào)
+   - POST /api/hubs
+     - Thêm hub mới.
+   - PUT /api/hubs/{id}
+     - Cập nhật hub.
+   - DELETE /api/hubs/{id}
+     - Xóa hub.
+
+4. Quản lý Sensors (Cảm biến - SensorsPage)
+   - GET /api/sensors
+     - Lấy danh sách sensors.
+     - Filter: ?hub_id={id}
+   - POST /api/sensors
+     - Thêm sensor mới.
+   - PUT /api/sensors/{id}
+     - Cập nhật sensor.
+   - DELETE /api/sensors/{id}
+     - Xóa sensor.
+
+5. Quản lý Alerts (Cảnh báo - AlertsPage)
+   - GET /api/alerts
+     - Lấy danh sách cảnh báo.
+     - Filter: ?status={active|resolved}, ?severity={high|medium|low}
+   - PUT /api/alerts/{id}/ack
+     - Xác nhận đã xử lý cảnh báo (Acknowledge).
+
+6. Quản lý Users (Người dùng - UsersPage) [Role: ADMIN]
+   - GET /api/users
+     - Lấy danh sách người dùng.
+   - PUT /api/users/{id}/role
+     - Phân quyền (Set role: ADMIN, MANAGER, USER).
+   - DELETE /api/users/{id}
+     - Xóa người dùng.
+
+7. Dashboard (Thống kê - DashboardPage)
+   - GET /api/dashboard/stats
+     - Trả về các số liệu tổng quan:
+       - Total Sites
+       - Total Hubs
+       - Active Sensors
+       - Pending Alerts
