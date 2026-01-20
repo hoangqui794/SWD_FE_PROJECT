@@ -1,6 +1,7 @@
-
 import React from 'react';
-import { Link, useLocation } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom'; // Added useNavigate
+import { useAuth } from '../context/AuthContext'; // Value added
+import { Role } from '../types/auth';
 
 interface SidebarProps {
   isOpen?: boolean;
@@ -9,16 +10,29 @@ interface SidebarProps {
 
 const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
   const location = useLocation();
+  const navigate = useNavigate();
+  const { user, hasRole, logout } = useAuth(); // Use auth context
+
   const navItems = [
-    { path: "/dashboard", icon: "dashboard", label: "Dashboard", menu: "Main Menu" },
-    { path: "/sites", icon: "storefront", label: "Sites", menu: "Main Menu" },
-    { path: "/hubs", icon: "router", label: "Hubs", menu: "Main Menu" },
-    { path: "/sensors", icon: "sensors", label: "Sensors", menu: "Main Menu" },
-    { path: "/alerts", icon: "notifications", label: "Alerts", menu: "Main Menu" },
-    { path: "/users", icon: "manage_accounts", label: "Users", menu: "Administration" },
+    { path: "/dashboard", icon: "dashboard", label: "Dashboard", menu: "Main Menu", roles: [] as Role[] }, // Empty roles = all
+    { path: "/sites", icon: "storefront", label: "Sites", menu: "Main Menu", roles: ['ADMIN', 'MANAGER'] as Role[] },
+    { path: "/hubs", icon: "router", label: "Hubs", menu: "Main Menu", roles: ['ADMIN', 'MANAGER'] as Role[] },
+    { path: "/sensors", icon: "sensors", label: "Sensors", menu: "Main Menu", roles: ['ADMIN', 'MANAGER'] as Role[] },
+    { path: "/alerts", icon: "notifications", label: "Alerts", menu: "Main Menu", roles: ['ADMIN', 'MANAGER'] as Role[] },
+    { path: "/users", icon: "manage_accounts", label: "Users", menu: "Administration", roles: ['ADMIN'] as Role[] },
   ];
 
   const isActive = (path: string) => location.pathname === path;
+
+  const handleLogout = () => {
+    logout();
+    navigate('/');
+  };
+
+  const checkPermission = (itemRoles: Role[]) => {
+    if (itemRoles.length === 0) return true; // Public/All
+    return hasRole(itemRoles);
+  };
 
   return (
     <aside className={`
@@ -43,10 +57,10 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
 
       <nav className="flex-1 mt-4 overflow-y-auto">
         <div className="px-4 mb-2 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Main Menu</div>
-        {navItems.filter(item => item.menu === "Main Menu").map(item => (
-          <Link 
-            key={item.path} 
-            to={item.path} 
+        {navItems.filter(item => item.menu === "Main Menu" && checkPermission(item.roles)).map(item => (
+          <Link
+            key={item.path}
+            to={item.path}
             onClick={onClose}
             className={`flex items-center gap-3 px-6 py-3 transition-all ${isActive(item.path) ? 'sidebar-item-active' : 'sidebar-item-inactive'}`}
           >
@@ -54,26 +68,36 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
             <span className="text-sm font-medium">{item.label}</span>
           </Link>
         ))}
-        
-        <div className="px-4 mt-8 mb-2 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Administration</div>
-        {navItems.filter(item => item.menu === "Administration").map(item => (
-          <Link 
-            key={item.path} 
-            to={item.path} 
-            onClick={onClose}
-            className={`flex items-center gap-3 px-6 py-3 transition-all ${isActive(item.path) ? 'sidebar-item-active' : 'sidebar-item-inactive'}`}
-          >
-            <span className="material-symbols-outlined">{item.icon}</span>
-            <span className="text-sm font-medium">{item.label}</span>
-          </Link>
-        ))}
+
+        {/* Only show Administration header if there are visible items */}
+        {navItems.some(item => item.menu === "Administration" && checkPermission(item.roles)) && (
+          <>
+            <div className="px-4 mt-8 mb-2 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Administration</div>
+            {navItems.filter(item => item.menu === "Administration" && checkPermission(item.roles)).map(item => (
+              <Link
+                key={item.path}
+                to={item.path}
+                onClick={onClose}
+                className={`flex items-center gap-3 px-6 py-3 transition-all ${isActive(item.path) ? 'sidebar-item-active' : 'sidebar-item-inactive'}`}
+              >
+                <span className="material-symbols-outlined">{item.icon}</span>
+                <span className="text-sm font-medium">{item.label}</span>
+              </Link>
+            ))}
+          </>
+        )}
       </nav>
-      
+
       <div className="p-4 border-t border-border-muted">
-        <Link to="/dashboard" onClick={onClose} className="flex items-center gap-3 px-4 py-2 text-slate-500 hover:text-white transition-colors">
-          <span className="material-symbols-outlined">settings</span>
-          <span className="text-sm font-medium">Settings</span>
-        </Link>
+        <div className="px-4 py-2 mb-2">
+          <p className="text-xs text-slate-500">Logged in as:</p>
+          <p className="text-sm font-bold truncate">{user?.email}</p>
+          <p className="text-[10px] uppercase font-bold text-primary">{user?.role}</p>
+        </div>
+        <button onClick={handleLogout} className="flex w-full items-center gap-3 px-4 py-2 text-slate-500 hover:text-red-500 transition-colors">
+          <span className="material-symbols-outlined">logout</span>
+          <span className="text-sm font-medium">Logout</span>
+        </button>
       </div>
     </aside>
   );

@@ -1,15 +1,28 @@
-
 import React, { useState } from 'react';
 import Layout from '../components/Layout';
 import Modal from '../components/Modal';
+import { Role } from '../types/auth';
 
 const UsersPage: React.FC = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const users = [
-    { name: "Alexander Pierce", email: "a.pierce@system.io", role: "Admin" },
-    { name: "Sarah Jenkins", email: "s.jenkins@system.io", role: "Site Manager" },
-    { name: "David Chen", email: "d.chen@system.io", role: "Maintenance" },
-  ];
+  const [users, setUsers] = useState([
+    { id: 1, name: "Alexander Pierce", email: "a.pierce@system.io", role: "ADMIN" as Role },
+    { id: 2, name: "Sarah Jenkins", email: "s.jenkins@system.io", role: "MANAGER" as Role },
+    { id: 3, name: "David Chen", email: "d.chen@system.io", role: "USER" as Role },
+  ]);
+
+  const [formData, setFormData] = useState({
+    name: "",
+    email: "",
+    role: "USER" as Role
+  });
+
+  const handleCreateUser = () => {
+    // Mock user creation
+    setUsers([...users, { id: users.length + 1, ...formData }]);
+    setIsModalOpen(false);
+    setFormData({ name: "", email: "", role: "USER" });
+  };
 
   return (
     <Layout title="Users" breadcrumb="Administration">
@@ -32,12 +45,12 @@ const UsersPage: React.FC = () => {
             </tr>
           </thead>
           <tbody className="divide-y divide-border-muted">
-            {users.map((user, idx) => (
-              <tr key={idx} className="hover:bg-white/5 transition-colors">
+            {users.map((user) => (
+              <tr key={user.id} className="hover:bg-white/5 transition-colors">
                 <td className="px-6 py-4 text-sm font-medium text-white">{user.name}</td>
                 <td className="px-6 py-4 text-xs text-slate-400">{user.email}</td>
                 <td className="px-6 py-4">
-                  <span className="text-[10px] font-bold uppercase bg-white/10 px-2 py-1 rounded text-white">
+                  <span className={`text-[10px] font-bold uppercase bg-white/10 px-2 py-1 rounded text-white`}>
                     {user.role}
                   </span>
                 </td>
@@ -48,35 +61,51 @@ const UsersPage: React.FC = () => {
       </div>
 
       <Modal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} title="Create User">
-        <form className="p-8 grid grid-cols-1 gap-6 bg-white text-black">
+        <form className="p-6 space-y-6">
           <div className="space-y-2">
-            <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Full Name</label>
-            <input className="w-full border-slate-200 p-3 text-sm focus:ring-0 focus:border-black" placeholder="e.g. Robert Smith" required />
+            <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Full Name</label>
+            <input
+              className="w-full bg-zinc-900 border border-border-muted rounded-lg px-4 py-3 text-sm focus:ring-1 focus:ring-primary outline-none text-white"
+              placeholder="e.g. Robert Smith"
+              value={formData.name}
+              onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+              required
+            />
           </div>
           <div className="space-y-2">
-            <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Email</label>
-            <input type="email" className="w-full border-slate-200 p-3 text-sm focus:ring-0 focus:border-black" placeholder="r.smith@example.com" required />
+            <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Email</label>
+            <input
+              type="email"
+              className="w-full bg-zinc-900 border border-border-muted rounded-lg px-4 py-3 text-sm focus:ring-1 focus:ring-primary outline-none text-white"
+              placeholder="r.smith@example.com"
+              value={formData.email}
+              onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+              required
+            />
           </div>
           <div className="space-y-2">
-            <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Role</label>
-            <select className="w-full border-slate-200 p-3 text-sm focus:ring-0 focus:border-black">
-              <option>Admin</option>
-              <option>Site Manager</option>
-              <option>Technician</option>
-              <option>Viewer</option>
+            <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Role</label>
+            <select
+              className="w-full bg-zinc-900 border border-border-muted rounded-lg px-4 py-3 text-sm focus:ring-1 focus:ring-primary outline-none text-white"
+              value={formData.role}
+              onChange={(e) => setFormData({ ...formData, role: e.target.value as Role })}
+            >
+              <option value="ADMIN">Admin</option>
+              <option value="MANAGER">Manager</option>
+              <option value="USER">User</option>
             </select>
           </div>
-          <div className="flex gap-3 pt-6 justify-end">
-            <button 
-              onClick={() => setIsModalOpen(false)} 
-              className="px-6 py-3 border border-black text-black text-xs font-bold uppercase hover:bg-slate-50 transition-colors" 
+          <div className="flex gap-3 pt-4">
+            <button
+              onClick={() => setIsModalOpen(false)}
+              className="flex-1 px-6 py-2.5 border border-border-muted text-slate-400 rounded text-xs font-bold uppercase hover:bg-white/5"
               type="button"
             >
               Cancel
             </button>
-            <button 
-              onClick={() => setIsModalOpen(false)} 
-              className="px-6 py-3 bg-black text-white text-xs font-bold uppercase hover:bg-slate-800 transition-colors" 
+            <button
+              onClick={handleCreateUser}
+              className="flex-1 px-6 py-2.5 bg-white text-black rounded text-xs font-bold uppercase hover:bg-slate-200"
               type="button"
             >
               Create User

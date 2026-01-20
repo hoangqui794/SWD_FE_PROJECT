@@ -1,12 +1,19 @@
-
-import React from 'react';
+import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
+import { useAuth } from '../context/AuthContext';
+import { Role } from '../types/auth';
 
 const LoginPage: React.FC = () => {
   const navigate = useNavigate();
+  const { login } = useAuth();
+
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [selectedRole, setSelectedRole] = useState<Role>('ADMIN');
 
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();
+    login(email, selectedRole);
     navigate('/dashboard');
   };
 
@@ -25,11 +32,13 @@ const LoginPage: React.FC = () => {
             <p className="text-slate-900 dark:text-white text-sm font-bold uppercase tracking-wider pb-2">Email</p>
             <div className="relative flex items-center">
               <span className="material-symbols-outlined absolute left-4 text-slate-400">mail</span>
-              <input 
-                className="form-input flex w-full border-2 border-slate-200 dark:border-slate-800 bg-transparent text-slate-900 dark:text-white focus:outline-0 focus:ring-0 focus:border-primary h-12 pl-12 pr-4 placeholder:text-slate-400 text-base" 
-                placeholder="user@iot-admin.com" 
-                type="email" 
+              <input
+                className="form-input flex w-full border-2 border-slate-200 dark:border-slate-800 bg-transparent text-slate-900 dark:text-white focus:outline-0 focus:ring-0 focus:border-primary h-12 pl-12 pr-4 placeholder:text-slate-400 text-base"
+                placeholder="user@iot-admin.com"
+                type="email"
                 required
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
               />
             </div>
           </label>
@@ -37,16 +46,36 @@ const LoginPage: React.FC = () => {
             <p className="text-slate-900 dark:text-white text-sm font-bold uppercase tracking-wider pb-2">Password</p>
             <div className="relative flex items-center">
               <span className="material-symbols-outlined absolute left-4 text-slate-400">lock</span>
-              <input 
-                className="form-input flex w-full border-2 border-slate-200 dark:border-slate-800 bg-transparent text-slate-900 dark:text-white focus:outline-0 focus:ring-0 focus:border-primary h-12 pl-12 pr-12 placeholder:text-slate-400 text-base" 
-                placeholder="••••••••" 
-                type="password" 
+              <input
+                className="form-input flex w-full border-2 border-slate-200 dark:border-slate-800 bg-transparent text-slate-900 dark:text-white focus:outline-0 focus:ring-0 focus:border-primary h-12 pl-12 pr-12 placeholder:text-slate-400 text-base"
+                placeholder="••••••••"
+                type="password"
                 required
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
               />
             </div>
           </label>
+
+          {/* Role Selection for Demo */}
+          <label className="flex flex-col w-full">
+            <p className="text-slate-900 dark:text-white text-sm font-bold uppercase tracking-wider pb-2">Demo Role</p>
+            <div className="relative flex items-center">
+              <span className="material-symbols-outlined absolute left-4 text-slate-400">admin_panel_settings</span>
+              <select
+                className="form-select flex w-full border-2 border-slate-200 dark:border-slate-800 bg-transparent text-slate-900 dark:text-white focus:outline-0 focus:ring-0 focus:border-primary h-12 pl-12 pr-4 text-base"
+                value={selectedRole}
+                onChange={(e) => setSelectedRole(e.target.value as Role)}
+              >
+                <option value="ADMIN">Admin</option>
+                <option value="MANAGER">Manager</option>
+                <option value="USER">User</option>
+              </select>
+            </div>
+          </label>
+
           <div className="pt-4 flex flex-col gap-4">
-            <button 
+            <button
               type="submit"
               className="flex w-full items-center justify-center h-12 px-5 bg-black dark:bg-white text-white dark:text-black text-sm font-bold uppercase tracking-widest transition-colors hover:bg-slate-800 dark:hover:bg-slate-200"
             >
