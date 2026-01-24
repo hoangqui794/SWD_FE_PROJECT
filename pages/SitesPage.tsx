@@ -74,9 +74,27 @@ const SitesPage: React.FC = () => {
     }
   };
 
-  const handleSubmit = () => {
-    // Implement API submit here in future
-    setIsModalOpen(false);
+  const handleSubmit = async () => {
+    try {
+      if (editingId) {
+        // Implement update API
+        // await siteService.update(editingId, { ... });
+      } else {
+        await siteService.create({
+          orgId: 1, // Default for "WinMart Retail Group"
+          name: formData.name,
+          address: formData.address,
+          geoLocation: formData.geoLocation || "0,0"
+        });
+      }
+      // Refresh sites list
+      fetchSites();
+      setIsModalOpen(false);
+    } catch (e: any) {
+      console.error("Failed to save site", e);
+      const errorMsg = e.response?.data || e.message || "Unknown error";
+      alert(`Failed to save site:\n${typeof errorMsg === 'object' ? JSON.stringify(errorMsg) : errorMsg}`);
+    }
   };
 
   return (
@@ -208,16 +226,7 @@ const SitesPage: React.FC = () => {
               placeholder="Lat, Long (e.g. 21.0285,105.8542)"
             />
           </div>
-          <div className="space-y-2">
-            <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Hubs Count</label>
-            <input
-              type="number"
-              value={formData.hubs}
-              onChange={(e) => setFormData({ ...formData, hubs: e.target.value })}
-              className="w-full bg-zinc-900 border border-border-muted rounded-lg px-4 py-3 text-sm focus:ring-1 focus:ring-primary outline-none text-white"
-              placeholder="Number of hubs"
-            />
-          </div>
+
           <div className="flex gap-3 pt-4">
             <button
               onClick={() => setIsModalOpen(false)}

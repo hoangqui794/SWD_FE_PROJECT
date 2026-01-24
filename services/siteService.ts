@@ -17,8 +17,11 @@ export const siteService = {
         return response.data;
     },
 
-    // Future methods: create, update, delete
-    // create: async (data: any) => apiClient.post('/api/site', data),
+    create: async (data: Omit<Site, 'siteId' | 'orgName' | 'hubCount'>): Promise<void> => {
+        await apiClient.post('/api/site', data);
+    },
+
+    // Future methods: update, delete
     // update: async (id: number, data: any) => apiClient.put(`/api/site/${id}`, data),
     // delete: async (id: number) => apiClient.delete(`/api/site/${id}`),
 };
