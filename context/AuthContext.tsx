@@ -10,6 +10,8 @@ interface AuthContextType {
     hasRole: (requiredRole: Role[]) => boolean;
 }
 
+import { authService } from '../services/authService';
+
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
@@ -17,13 +19,28 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     const [isLoading, setIsLoading] = useState(true);
 
     useEffect(() => {
-        // Check local storage for persisted session
-        const storedUser = localStorage.getItem('user');
-        const storedToken = localStorage.getItem('token');
-        if (storedUser && storedToken) {
-            setUser(JSON.parse(storedUser));
-        }
-        setIsLoading(false);
+        const checkAuth = async () => {
+            const storedToken = localStorage.getItem('token');
+            if (storedToken) {
+                try {
+                    const userData = await authService.getCurrentUser();
+                    // Normalize role to match our Type definition
+                    const normalizedUser = {
+                        ...userData,
+                        role: userData.role.toUpperCase() as Role
+                    };
+                    setUser(normalizedUser);
+                    localStorage.setItem('user', JSON.stringify(normalizedUser));
+                } catch (error) {
+                    console.error('Session verification failed:', error);
+                    localStorage.removeItem('user');
+                    localStorage.removeItem('token');
+                    setUser(null);
+                }
+            }
+            setIsLoading(false);
+        };
+        checkAuth();
     }, []);
 
     const login = (userData: User, token: string) => {

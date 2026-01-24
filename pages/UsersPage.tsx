@@ -36,28 +36,30 @@ const UsersPage: React.FC = () => {
         </button>
       </div>
       <div className="bg-white/5 rounded-xl border border-border-muted overflow-hidden">
-        <table className="w-full text-left">
-          <thead className="bg-zinc-900/50 border-b border-border-muted">
-            <tr>
-              <th className="px-6 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Full Name</th>
-              <th className="px-6 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Email</th>
-              <th className="px-6 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Role</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-border-muted">
-            {users.map((user) => (
-              <tr key={user.id} className="hover:bg-white/5 transition-colors">
-                <td className="px-6 py-4 text-sm font-medium text-white">{user.name}</td>
-                <td className="px-6 py-4 text-xs text-slate-400">{user.email}</td>
-                <td className="px-6 py-4">
-                  <span className={`text-[10px] font-bold uppercase bg-white/10 px-2 py-1 rounded text-white`}>
-                    {user.role}
-                  </span>
-                </td>
+        <div className="overflow-x-auto">
+          <table className="w-full text-left">
+            <thead className="bg-zinc-900/50 border-b border-border-muted">
+              <tr>
+                <th className="px-6 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Full Name</th>
+                <th className="px-6 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Email</th>
+                <th className="px-6 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Role</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody className="divide-y divide-border-muted">
+              {users.map((user) => (
+                <tr key={user.id} className="hover:bg-white/5 transition-colors">
+                  <td className="px-6 py-4 text-sm font-medium text-white">{user.name}</td>
+                  <td className="px-6 py-4 text-xs text-slate-400">{user.email}</td>
+                  <td className="px-6 py-4">
+                    <span className={`text-[10px] font-bold uppercase bg-white/10 px-2 py-1 rounded text-white`}>
+                      {user.role}
+                    </span>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       </div>
 
       <Modal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} title="Create User">

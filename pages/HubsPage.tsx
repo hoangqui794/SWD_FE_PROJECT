@@ -23,52 +23,54 @@ const HubsPage: React.FC = () => {
         </button>
       </div>
       <div className="bg-white/5 rounded-xl border border-border-muted overflow-hidden">
-        <table className="w-full text-left">
-          <thead className="border-b border-border-muted bg-zinc-900/50">
-            <tr>
-              <th className="px-6 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Hub ID</th>
-              <th className="px-6 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest">MAC Address</th>
-              <th className="px-6 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Status</th>
-              <th className="px-6 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest text-right">Actions</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-border-muted">
-            {hubs.map((hub, idx) => (
-              <tr key={idx} className="hover:bg-white/5 transition-colors">
-                <td className="px-6 py-4 text-sm font-bold text-white">{hub.id}</td>
-                <td className="px-6 py-4 text-xs font-mono text-slate-400">{hub.mac}</td>
-                <td className="px-6 py-4">
-                  <span className={`text-[10px] font-bold uppercase ${hub.color}`}>{hub.status}</span>
-                </td>
-                <td className="px-6 py-4 text-right">
-                  <button className="text-slate-500 hover:text-white transition-colors">
-                    <span className="material-symbols-outlined">more_vert</span>
-                  </button>
-                </td>
+        <div className="overflow-x-auto">
+          <table className="w-full text-left">
+            <thead className="border-b border-border-muted bg-zinc-900/50">
+              <tr>
+                <th className="px-6 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Hub ID</th>
+                <th className="px-6 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest">MAC Address</th>
+                <th className="px-6 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Status</th>
+                <th className="px-6 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest text-right">Actions</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody className="divide-y divide-border-muted">
+              {hubs.map((hub, idx) => (
+                <tr key={idx} className="hover:bg-white/5 transition-colors">
+                  <td className="px-6 py-4 text-sm font-bold text-white">{hub.id}</td>
+                  <td className="px-6 py-4 text-xs font-mono text-slate-400">{hub.mac}</td>
+                  <td className="px-6 py-4">
+                    <span className={`text-[10px] font-bold uppercase ${hub.color}`}>{hub.status}</span>
+                  </td>
+                  <td className="px-6 py-4 text-right">
+                    <button className="text-slate-500 hover:text-white transition-colors">
+                      <span className="material-symbols-outlined">more_vert</span>
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       </div>
 
       <Modal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} title="Add New Hub">
         <form className="p-6 space-y-6">
           <div className="space-y-2">
             <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">MAC Address</label>
-            <input 
-              className="w-full bg-zinc-900 border border-border-muted rounded px-4 py-2.5 text-sm font-mono focus:ring-1 focus:ring-primary outline-none text-white" 
-              placeholder="00:00:00:00:00:00" 
+            <input
+              className="w-full bg-zinc-900 border border-border-muted rounded px-4 py-2.5 text-sm font-mono focus:ring-1 focus:ring-primary outline-none text-white"
+              placeholder="00:00:00:00:00:00"
             />
           </div>
           <div className="flex gap-3 pt-4">
-            <button 
-              onClick={() => setIsModalOpen(false)} 
+            <button
+              onClick={() => setIsModalOpen(false)}
               className="flex-1 px-4 py-2.5 border border-border-muted text-white rounded text-xs font-bold uppercase hover:bg-white/5"
             >
               Cancel
             </button>
-            <button 
-              onClick={() => setIsModalOpen(false)} 
+            <button
+              onClick={() => setIsModalOpen(false)}
               className="flex-1 px-4 py-2.5 bg-white text-black rounded text-xs font-bold uppercase hover:bg-slate-200"
             >
               Register Hub

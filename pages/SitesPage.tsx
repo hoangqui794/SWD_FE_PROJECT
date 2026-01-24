@@ -1,71 +1,81 @@
-
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Layout from '../components/Layout';
 import Modal from '../components/Modal';
+
+
+
+import { siteService, Site } from '../services/siteService';
 
 const SitesPage: React.FC = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
+  const [sites, setSites] = useState<Site[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  // State for sites data
-  const [sites, setSites] = useState([
-    { id: "S-CG-001", org: "WinMart Retail Group", name: "WinMart Cầu Giấy", hubs: "08" },
-    { id: "S-HK-002", org: "WinMart Retail Group", name: "WinMart Hoàn Kiếm", hubs: "12" },
-    { id: "S-BT-003", org: "WinMart Retail Group", name: "WinMart Bình Thạnh", hubs: "05" },
-  ]);
+  // Fetch sites
+  useEffect(() => {
+    fetchSites();
+  }, [searchTerm]);
+
+  const fetchSites = async () => {
+    setIsLoading(true);
+    setError(null);
+    try {
+      const data = await siteService.getAll(searchTerm);
+      setSites(data);
+    } catch (error) {
+      console.error("Failed to fetch sites", error);
+      setError('Connection error. Please check your backend server.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   // State for form handling
-  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editingId, setEditingId] = useState<number | null>(null);
   const [formData, setFormData] = useState({
     org: "",
     name: "",
+    address: "",
+    geoLocation: "",
     hubs: ""
   });
 
   // State for delete confirmation
-  const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null);
-
-  const filteredSites = sites.filter(s =>
-    s.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    s.id.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const [deleteTargetId, setDeleteTargetId] = useState<number | null>(null);
 
   const handleAddNew = () => {
     setEditingId(null);
-    setFormData({ org: "WinMart Retail Group", name: "", hubs: "0" });
+    setFormData({ org: "WinMart Retail Group", name: "", address: "", geoLocation: "", hubs: "0" });
     setIsModalOpen(true);
   };
 
-  const handleEdit = (site: any) => {
-    setEditingId(site.id);
-    setFormData({ org: site.org, name: site.name, hubs: site.hubs });
+  const handleEdit = (site: Site) => {
+    setEditingId(site.siteId);
+    setFormData({
+      org: site.orgName,
+      name: site.name,
+      address: site.address,
+      geoLocation: site.geoLocation,
+      hubs: site.hubCount.toString()
+    });
     setIsModalOpen(true);
   };
 
-  const initiateDelete = (id: string) => {
+  const initiateDelete = (id: number) => {
     setDeleteTargetId(id);
   };
 
   const confirmDelete = () => {
     if (deleteTargetId) {
-      setSites(sites.filter(site => site.id !== deleteTargetId));
+      setSites(sites.filter(site => site.siteId !== deleteTargetId));
       setDeleteTargetId(null);
     }
   };
 
   const handleSubmit = () => {
-    if (editingId) {
-      // Update existing
-      setSites(sites.map(site =>
-        site.id === editingId
-          ? { ...site, ...formData }
-          : site
-      ));
-    } else {
-      // Add new
-      const newId = `S-${Math.floor(Math.random() * 10000).toString().padStart(4, '0')}`;
-      setSites([...sites, { id: newId, ...formData }]);
-    }
+    // Implement API submit here in future
     setIsModalOpen(false);
   };
 
@@ -93,50 +103,70 @@ const SitesPage: React.FC = () => {
             />
           </div>
         </div>
-        <table className="w-full text-left">
-          <thead className="border-b border-border-muted bg-zinc-900/50">
-            <tr>
-              <th className="px-6 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Site ID</th>
-              <th className="px-6 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Organization</th>
-              <th className="px-6 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Site Name</th>
-              <th className="px-6 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest text-center">Hubs</th>
-              <th className="px-6 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest text-right">Actions</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-border-muted">
-            {filteredSites.map(site => (
-              <tr key={site.id} className="hover:bg-white/5 transition-colors">
-                <td className="px-6 py-4 text-xs font-bold text-white">{site.id}</td>
-                <td className="px-6 py-4 text-xs">{site.org}</td>
-                <td className="px-6 py-4 text-sm font-medium">{site.name}</td>
-                <td className="px-6 py-4 text-center font-bold">{site.hubs}</td>
-                <td className="px-6 py-4 text-right flex justify-end gap-2">
-                  <button
-                    onClick={() => handleEdit(site)}
-                    className="text-slate-500 hover:text-white transition-colors"
-                    title="Edit"
-                  >
-                    <span className="material-symbols-outlined text-sm">edit</span>
-                  </button>
-                  <button
-                    onClick={() => initiateDelete(site.id)}
-                    className="text-slate-500 hover:text-red-500 transition-colors"
-                    title="Delete"
-                  >
-                    <span className="material-symbols-outlined text-sm">delete</span>
-                  </button>
-                </td>
-              </tr>
-            ))}
-            {filteredSites.length === 0 && (
-              <tr>
-                <td colSpan={5} className="px-6 py-8 text-center text-slate-500 text-sm">
-                  No sites found matching your search.
-                </td>
-              </tr>
-            )}
-          </tbody>
-        </table>
+
+        {isLoading ? (
+          <div className="p-8 text-center text-slate-500">Loading sites...</div>
+        ) : error ? (
+          <div className="p-8 text-center text-red-500 bg-red-500/10 rounded-lg m-4 border border-red-500/20">
+            <p className="font-bold">Error loading data</p>
+            <p className="text-sm opacity-80 mt-1">{error}</p>
+            <button onClick={fetchSites} className="mt-4 px-4 py-2 bg-red-500 text-white text-xs font-bold rounded hover:bg-red-600 transition-colors">Retry</button>
+          </div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-left min-w-[800px]">
+              <thead className="border-b border-border-muted bg-zinc-900/50">
+                <tr>
+                  <th className="px-6 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Site ID</th>
+                  <th className="px-6 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Organization</th>
+                  <th className="px-6 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Site Name</th>
+                  <th className="px-6 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest text-center">Hubs</th>
+                  <th className="px-6 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest text-right">Actions</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-border-muted">
+                {sites.map(site => (
+                  <tr key={site.siteId} className="hover:bg-white/5 transition-colors">
+                    <td className="px-6 py-4 text-xs font-bold text-white whitespace-nowrap">{site.siteId}</td>
+                    <td className="px-6 py-4 text-xs whitespace-nowrap">{site.orgName}</td>
+                    <td className="px-6 py-4 text-sm font-medium min-w-[200px]">
+                      {site.name}
+                      <div className="text-[10px] text-slate-500 font-normal mt-0.5">{site.address}</div>
+                      <div className="text-[9px] text-slate-600 font-mono mt-0.5 flex items-center gap-1">
+                        <span className="material-symbols-outlined text-[10px]">location_on</span>
+                        {site.geoLocation}
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 text-center font-bold">{site.hubCount}</td>
+                    <td className="px-6 py-4 text-right flex justify-end gap-2">
+                      <button
+                        onClick={() => handleEdit(site)}
+                        className="text-slate-500 hover:text-white transition-colors"
+                        title="Edit"
+                      >
+                        <span className="material-symbols-outlined text-sm">edit</span>
+                      </button>
+                      <button
+                        onClick={() => initiateDelete(site.siteId)}
+                        className="text-slate-500 hover:text-red-500 transition-colors"
+                        title="Delete"
+                      >
+                        <span className="material-symbols-outlined text-sm">delete</span>
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+                {sites.length === 0 && (
+                  <tr>
+                    <td colSpan={5} className="px-6 py-8 text-center text-slate-500 text-sm">
+                      No sites found matching your search.
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        )}
       </div>
 
       {/* Edit/Create Modal */}
@@ -158,6 +188,24 @@ const SitesPage: React.FC = () => {
               onChange={(e) => setFormData({ ...formData, name: e.target.value })}
               className="w-full bg-zinc-900 border border-border-muted rounded-lg px-4 py-3 text-sm focus:ring-1 focus:ring-primary outline-none text-white"
               placeholder="e.g., WinMart Cầu Giấy"
+            />
+          </div>
+          <div className="space-y-2">
+            <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Address</label>
+            <input
+              value={formData.address}
+              onChange={(e) => setFormData({ ...formData, address: e.target.value })}
+              className="w-full bg-zinc-900 border border-border-muted rounded-lg px-4 py-3 text-sm focus:ring-1 focus:ring-primary outline-none text-white"
+              placeholder="e.g., 123 Cau Giay, Hanoi"
+            />
+          </div>
+          <div className="space-y-2">
+            <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Geo Location</label>
+            <input
+              value={formData.geoLocation}
+              onChange={(e) => setFormData({ ...formData, geoLocation: e.target.value })}
+              className="w-full bg-zinc-900 border border-border-muted rounded-lg px-4 py-3 text-sm focus:ring-1 focus:ring-primary outline-none text-white"
+              placeholder="Lat, Long (e.g. 21.0285,105.8542)"
             />
           </div>
           <div className="space-y-2">

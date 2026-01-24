@@ -48,8 +48,8 @@ const AlertsPage: React.FC = () => {
               key={status}
               onClick={() => setFilterStatus(status as any)}
               className={`px-4 py-2 rounded text-xs font-bold uppercase transition-all ${filterStatus === status
-                  ? 'bg-white text-black shadow-lg shadow-white/10'
-                  : 'bg-white/5 text-slate-400 hover:bg-white/10'
+                ? 'bg-white text-black shadow-lg shadow-white/10'
+                : 'bg-white/5 text-slate-400 hover:bg-white/10'
                 }`}
             >
               {status}
@@ -74,65 +74,67 @@ const AlertsPage: React.FC = () => {
           </div>
         </div>
 
-        <table className="w-full text-left whitespace-nowrap">
-          <thead className="bg-zinc-900/50 border-b border-border-muted">
-            <tr>
-              <th className="px-6 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Time</th>
-              <th className="px-6 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Sensor</th>
-              <th className="px-6 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Severity</th>
-              <th className="px-6 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Status</th>
-              <th className="px-6 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest text-right">Actions</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-border-muted">
-            {filteredAlerts.map((alert) => (
-              <tr key={alert.id} className="hover:bg-white/5 transition-colors">
-                <td className="px-6 py-4 text-xs font-mono text-slate-300">{alert.time}</td>
-                <td className="px-6 py-4 text-xs font-medium text-white">{alert.sensor}</td>
-                <td className="px-6 py-4">
-                  <span className={`px-2 py-1 border text-[10px] font-bold uppercase rounded ${getSeverityStyle(alert.severity)}`}>
-                    {alert.severity}
-                  </span>
-                </td>
-                <td className="px-6 py-4">
-                  <span className={`flex items-center gap-2 text-[10px] font-bold uppercase ${alert.status === 'Active' ? 'text-red-500 animate-pulse' : 'text-slate-500'
-                    }`}>
-                    <span className={`w-1.5 h-1.5 rounded-full ${alert.status === 'Active' ? 'bg-red-500' : 'bg-slate-500'}`}></span>
-                    {alert.status}
-                  </span>
-                </td>
-                <td className="px-6 py-4 text-right">
-                  <div className="flex items-center justify-end gap-2">
-                    {alert.status === 'Active' && (
-                      <button
-                        onClick={() => handleResolve(alert.id)}
-                        className="px-3 py-1 bg-green-500/10 text-green-500 border border-green-500/50 rounded hover:bg-green-500/20 text-[10px] font-bold uppercase transition-colors"
-                        title="Mark as Resolved"
-                      >
-                        Resolve
-                      </button>
-                    )}
-                    <button
-                      onClick={() => handleDelete(alert.id)}
-                      className="p-1 text-slate-500 hover:text-red-500 transition-colors"
-                      title="Delete Log"
-                    >
-                      <span className="material-symbols-outlined text-sm">delete</span>
-                    </button>
-                  </div>
-                </td>
-              </tr>
-            ))}
-            {filteredAlerts.length === 0 && (
+        <div className="overflow-x-auto">
+          <table className="w-full text-left whitespace-nowrap">
+            <thead className="bg-zinc-900/50 border-b border-border-muted">
               <tr>
-                <td colSpan={5} className="px-6 py-12 text-center text-slate-500 text-sm">
-                  <span className="material-symbols-outlined text-4xl block mb-2 opacity-20">notifications_off</span>
-                  No alerts found matching your criteria.
-                </td>
+                <th className="px-6 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Time</th>
+                <th className="px-6 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Sensor</th>
+                <th className="px-6 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Severity</th>
+                <th className="px-6 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Status</th>
+                <th className="px-6 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest text-right">Actions</th>
               </tr>
-            )}
-          </tbody>
-        </table>
+            </thead>
+            <tbody className="divide-y divide-border-muted">
+              {filteredAlerts.map((alert) => (
+                <tr key={alert.id} className="hover:bg-white/5 transition-colors">
+                  <td className="px-6 py-4 text-xs font-mono text-slate-300">{alert.time}</td>
+                  <td className="px-6 py-4 text-xs font-medium text-white">{alert.sensor}</td>
+                  <td className="px-6 py-4">
+                    <span className={`px-2 py-1 border text-[10px] font-bold uppercase rounded ${getSeverityStyle(alert.severity)}`}>
+                      {alert.severity}
+                    </span>
+                  </td>
+                  <td className="px-6 py-4">
+                    <span className={`flex items-center gap-2 text-[10px] font-bold uppercase ${alert.status === 'Active' ? 'text-red-500 animate-pulse' : 'text-slate-500'
+                      }`}>
+                      <span className={`w-1.5 h-1.5 rounded-full ${alert.status === 'Active' ? 'bg-red-500' : 'bg-slate-500'}`}></span>
+                      {alert.status}
+                    </span>
+                  </td>
+                  <td className="px-6 py-4 text-right">
+                    <div className="flex items-center justify-end gap-2">
+                      {alert.status === 'Active' && (
+                        <button
+                          onClick={() => handleResolve(alert.id)}
+                          className="px-3 py-1 bg-green-500/10 text-green-500 border border-green-500/50 rounded hover:bg-green-500/20 text-[10px] font-bold uppercase transition-colors"
+                          title="Mark as Resolved"
+                        >
+                          Resolve
+                        </button>
+                      )}
+                      <button
+                        onClick={() => handleDelete(alert.id)}
+                        className="p-1 text-slate-500 hover:text-red-500 transition-colors"
+                        title="Delete Log"
+                      >
+                        <span className="material-symbols-outlined text-sm">delete</span>
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+              {filteredAlerts.length === 0 && (
+                <tr>
+                  <td colSpan={5} className="px-6 py-12 text-center text-slate-500 text-sm">
+                    <span className="material-symbols-outlined text-4xl block mb-2 opacity-20">notifications_off</span>
+                    No alerts found matching your criteria.
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
       </div>
     </Layout>
   );

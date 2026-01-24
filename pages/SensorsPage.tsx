@@ -23,28 +23,30 @@ const SensorsPage: React.FC = () => {
         </button>
       </div>
       <div className="bg-white/5 rounded-xl border border-border-muted overflow-hidden">
-        <table className="w-full text-left">
-          <thead className="bg-zinc-900/50 border-b border-border-muted">
-            <tr>
-              <th className="px-6 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Sensor Name</th>
-              <th className="px-6 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Type</th>
-              <th className="px-6 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Value</th>
-              <th className="px-6 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Status</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-border-muted">
-            {sensors.map((sensor, idx) => (
-              <tr key={idx} className="hover:bg-white/5 transition-colors">
-                <td className="px-6 py-4 text-sm font-medium text-white">{sensor.name}</td>
-                <td className="px-6 py-4 text-xs text-slate-400">{sensor.type}</td>
-                <td className={`px-6 py-4 font-bold ${sensor.color}`}>{sensor.value}</td>
-                <td className="px-6 py-4">
-                  <span className={`text-[10px] font-bold uppercase ${sensor.color}`}>{sensor.status}</span>
-                </td>
+        <div className="overflow-x-auto">
+          <table className="w-full text-left">
+            <thead className="bg-zinc-900/50 border-b border-border-muted">
+              <tr>
+                <th className="px-6 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Sensor Name</th>
+                <th className="px-6 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Type</th>
+                <th className="px-6 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Value</th>
+                <th className="px-6 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Status</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody className="divide-y divide-border-muted">
+              {sensors.map((sensor, idx) => (
+                <tr key={idx} className="hover:bg-white/5 transition-colors">
+                  <td className="px-6 py-4 text-sm font-medium text-white">{sensor.name}</td>
+                  <td className="px-6 py-4 text-xs text-slate-400">{sensor.type}</td>
+                  <td className={`px-6 py-4 font-bold ${sensor.color}`}>{sensor.value}</td>
+                  <td className="px-6 py-4">
+                    <span className={`text-[10px] font-bold uppercase ${sensor.color}`}>{sensor.status}</span>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       </div>
 
       <Modal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} title="Register Sensor">
@@ -67,14 +69,14 @@ const SensorsPage: React.FC = () => {
             </select>
           </div>
           <div className="pt-4 flex gap-3">
-            <button 
-              onClick={() => setIsModalOpen(false)} 
+            <button
+              onClick={() => setIsModalOpen(false)}
               className="flex-1 px-4 py-2.5 border border-border-muted text-white rounded text-xs font-bold uppercase hover:bg-white/5"
             >
               Cancel
             </button>
-            <button 
-              onClick={() => setIsModalOpen(false)} 
+            <button
+              onClick={() => setIsModalOpen(false)}
               className="flex-1 px-4 py-2.5 bg-primary text-white rounded text-xs font-bold uppercase hover:bg-primary/80"
             >
               Register
