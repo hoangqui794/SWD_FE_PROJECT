@@ -5,7 +5,7 @@ interface AuthContextType {
     user: User | null;
     isAuthenticated: boolean;
     isLoading: boolean;
-    login: (email: string, role: Role) => void;
+    login: (user: User, token: string) => void;
     logout: () => void;
     hasRole: (requiredRole: Role[]) => boolean;
 }
@@ -19,27 +19,23 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     useEffect(() => {
         // Check local storage for persisted session
         const storedUser = localStorage.getItem('user');
-        if (storedUser) {
+        const storedToken = localStorage.getItem('token');
+        if (storedUser && storedToken) {
             setUser(JSON.parse(storedUser));
         }
         setIsLoading(false);
     }, []);
 
-    const login = (email: string, role: Role) => {
-        // Mock login - in valid app this would verify credentials
-        const newUser: User = {
-            id: Math.random().toString(36).substr(2, 9),
-            email,
-            name: email.split('@')[0],
-            role,
-        };
-        setUser(newUser);
-        localStorage.setItem('user', JSON.stringify(newUser));
+    const login = (userData: User, token: string) => {
+        setUser(userData);
+        localStorage.setItem('user', JSON.stringify(userData));
+        localStorage.setItem('token', token);
     };
 
     const logout = () => {
         setUser(null);
         localStorage.removeItem('user');
+        localStorage.removeItem('token');
     };
 
     const hasRole = (requiredRoles: Role[]) => {
