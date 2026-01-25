@@ -67,18 +67,33 @@ const SitesPage: React.FC = () => {
     setDeleteTargetId(id);
   };
 
-  const confirmDelete = () => {
+  const confirmDelete = async () => {
     if (deleteTargetId) {
-      setSites(sites.filter(site => site.siteId !== deleteTargetId));
-      setDeleteTargetId(null);
+      try {
+        await siteService.delete(deleteTargetId);
+        // Remove locally
+        setSites(sites.filter(site => site.siteId !== deleteTargetId));
+      } catch (e: any) {
+        console.error("Failed to delete site", e);
+        // If 404, it's already gone, so update UI to reflect that
+        if (e.response && e.response.status === 404) {
+          setSites(sites.filter(site => site.siteId !== deleteTargetId));
+        }
+      } finally {
+        setDeleteTargetId(null);
+      }
     }
   };
 
   const handleSubmit = async () => {
     try {
       if (editingId) {
-        // Implement update API
-        // await siteService.update(editingId, { ... });
+        await siteService.update(editingId, {
+          orgId: 1, // Defaulting to 1 as per current logic
+          name: formData.name,
+          address: formData.address,
+          geoLocation: formData.geoLocation || "0,0"
+        });
       } else {
         await siteService.create({
           orgId: 1, // Default for "WinMart Retail Group"
