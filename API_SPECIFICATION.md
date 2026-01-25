@@ -2,6 +2,8 @@
 
 This document outlines the API endpoints required for the Frontend (React/Vite) to function correctly. The Backend should implement these endpoints following RESTful standards.
 
+**Base URL:** `https://swd-project-api.onrender.com`
+
 ## 1. Authentication & Users
 ### 1.1 Login
 - **Endpoint:** `POST /api/auth/login`
