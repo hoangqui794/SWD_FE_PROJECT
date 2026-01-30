@@ -3,12 +3,14 @@ import Layout from '../components/Layout';
 import Modal from '../components/Modal';
 import { hubService, Hub } from '../services/hubService';
 import { siteService, Site } from '../services/siteService';
+import { signalRService } from '../services/signalrService';
 
 const HubsPage: React.FC = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [hubs, setHubs] = useState<Hub[]>([]);
   const [sites, setSites] = useState<Site[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+
 
   // Form State
   const [formData, setFormData] = useState({
@@ -20,17 +22,41 @@ const HubsPage: React.FC = () => {
   useEffect(() => {
     fetchHubs();
     fetchSites();
+
+    // Ensure connection is started
+
+    signalRService.startConnection();
+
+    // Listen for realtime updates using the correct event names provided by the user
+    const handleHubStatus = (data: any) => {
+      console.log("Realtime update received via [ReceiveHubStatus]:", data);
+      fetchHubs(false); // Silent update
+    };
+
+    const handleSensorUpdate = (data: any) => {
+      console.log("Realtime update received via [ReceiveSensorUpdate]:", data);
+      // We might want to refresh hubs if sensor counts change, or update specific rows
+      fetchHubs(false); // Silent update
+    };
+
+    signalRService.on("ReceiveHubStatus", handleHubStatus);
+    signalRService.on("ReceiveSensorUpdate", handleSensorUpdate);
+
+    return () => {
+      signalRService.off("ReceiveHubStatus", handleHubStatus);
+      signalRService.off("ReceiveSensorUpdate", handleSensorUpdate);
+    };
   }, []);
 
-  const fetchHubs = async () => {
-    setIsLoading(true);
+  const fetchHubs = async (showLoading = true) => {
+    if (showLoading) setIsLoading(true);
     try {
       const data = await hubService.getAll();
       setHubs(data);
     } catch (error) {
       console.error("Failed to fetch hubs", error);
     } finally {
-      setIsLoading(false);
+      if (showLoading) setIsLoading(false);
     }
   };
 
