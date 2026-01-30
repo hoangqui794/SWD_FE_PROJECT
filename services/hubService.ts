@@ -28,7 +28,7 @@ export const hubService = {
         await apiClient.post('/api/hubs', data);
     },
 
-    update: async (id: number, data: { siteId: number; name: string }): Promise<void> => {
+    update: async (id: number, data: { siteId: number; name: string; macAddress: string }): Promise<void> => {
         await apiClient.put(`/api/hubs/${id}`, data);
     },
 

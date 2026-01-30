@@ -68,7 +68,8 @@ const HubsPage: React.FC = () => {
       if (editingId) {
         await hubService.update(editingId, {
           siteId: formData.siteId,
-          name: formData.name
+          name: formData.name,
+          macAddress: formData.macAddress
         });
       } else {
         await hubService.create(formData);
@@ -196,8 +197,7 @@ const HubsPage: React.FC = () => {
             <input
               value={formData.macAddress}
               onChange={(e) => setFormData({ ...formData, macAddress: e.target.value })}
-              disabled={!!editingId} // Disable MAC editing
-              className={`w-full bg-zinc-900 border border-border-muted rounded px-4 py-2.5 text-sm font-mono focus:ring-1 focus:ring-primary outline-none text-white ${editingId ? 'opacity-50 cursor-not-allowed' : ''}`}
+              className={`w-full bg-zinc-900 border border-border-muted rounded px-4 py-2.5 text-sm font-mono focus:ring-1 focus:ring-primary outline-none text-white`}
               placeholder="00:00:00:00:00:00"
             />
           </div>
