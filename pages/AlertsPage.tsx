@@ -3,12 +3,14 @@ import React, { useState, useEffect } from 'react';
 import Layout from '../components/Layout';
 import Modal from '../components/Modal';
 import { useAuth } from '../context/AuthContext';
+import { useNotification } from '../context/NotificationContext';
 
 import { alertService, Alert, AlertRule, CreateAlertRuleRequest } from '../services/alertService';
 import { sensorService, Sensor } from '../services/sensorService';
 
 const AlertsPage: React.FC = () => {
     const { hasRole } = useAuth();
+    const { showNotification } = useNotification();
     const canManage = hasRole(['ADMIN', 'MANAGER']);
 
     // Tabs: 'history' or 'rules'
@@ -17,7 +19,6 @@ const AlertsPage: React.FC = () => {
     // --- Common State ---
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
-    const [notification, setNotification] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
 
     // --- Alert History State ---
     const [alerts, setAlerts] = useState<Alert[]>([]);
@@ -49,13 +50,7 @@ const AlertsPage: React.FC = () => {
 
     // --- Effects ---
 
-    // Auto-dismiss notification
-    useEffect(() => {
-        if (notification) {
-            const timer = setTimeout(() => setNotification(null), 3000);
-            return () => clearTimeout(timer);
-        }
-    }, [notification]);
+
 
     // Fetch data based on active tab
     useEffect(() => {
@@ -69,9 +64,7 @@ const AlertsPage: React.FC = () => {
 
     // --- Helpers ---
 
-    const showNotification = (message: string, type: 'success' | 'error') => {
-        setNotification({ message, type });
-    };
+
 
     const getSeverityStyle = (severity: string) => {
         return severity === 'Critical'
@@ -559,22 +552,7 @@ const AlertsPage: React.FC = () => {
                 </form>
             </Modal>
 
-            {/* Toast Notification */}
-            {notification && (
-                <div className={`fixed top-20 right-4 z-[200] flex items-center gap-3 px-4 py-3 rounded shadow-2xl border transition-all duration-300 animate-in fade-in slide-in-from-right-5 ${notification.type === 'success'
-                    ? 'bg-zinc-900 border-green-500 text-green-500'
-                    : 'bg-zinc-900 border-red-500 text-red-500'
-                    }`}>
-                    <span className="material-symbols-outlined text-lg">
-                        {notification.type === 'success' ? 'check_circle' : 'error'}
-                    </span>
-                    <div>
-                        <h4 className="font-bold uppercase text-[10px] tracking-wider">{notification.type === 'success' ? 'Success' : 'Error'}</h4>
-                        <p className="text-xs text-white/90 mt-0.5">{notification.message}</p>
-                    </div>
-                    <button onClick={() => setNotification(null)} className="ml-2 hover:bg-white/10 rounded p-1"><span className="material-symbols-outlined text-sm">close</span></button>
-                </div>
-            )}
+            {/* 2. Create Rule Modal */}
         </Layout>
     );
 };

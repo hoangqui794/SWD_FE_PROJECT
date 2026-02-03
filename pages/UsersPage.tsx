@@ -3,8 +3,10 @@ import Layout from '../components/Layout';
 import Modal from '../components/Modal';
 import { userService, User } from '../services/userService';
 import { Role } from '../types/auth';
+import { useNotification } from '../context/NotificationContext';
 
 const UsersPage: React.FC = () => {
+  const { showNotification } = useNotification();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [users, setUsers] = useState<User[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -49,7 +51,7 @@ const UsersPage: React.FC = () => {
 
   const handleCreateUser = () => {
     // Placeholder for create user logic
-    alert("Create user functionality not yet implemented via API");
+    showNotification("Create user functionality not yet implemented via API", 'info');
     setIsModalOpen(false);
   };
 

@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import Layout from '../components/Layout';
 import Modal from '../components/Modal';
 import { useAuth } from '../context/AuthContext';
+import { useNotification } from '../context/NotificationContext';
 
 
 
@@ -10,6 +11,7 @@ import { siteService, Site } from '../services/siteService';
 
 const SitesPage: React.FC = () => {
   const { hasRole } = useAuth();
+  const { showNotification } = useNotification();
   const isAdmin = hasRole(['ADMIN']);
   const canEdit = hasRole(['ADMIN', 'MANAGER']);
 
@@ -79,11 +81,15 @@ const SitesPage: React.FC = () => {
         await siteService.delete(deleteTargetId);
         // Remove locally
         setSites(sites.filter(site => site.siteId !== deleteTargetId));
+        showNotification('Site deleted successfully!', 'success');
       } catch (e: any) {
         console.error("Failed to delete site", e);
         // If 404, it's already gone, so update UI to reflect that
         if (e.response && e.response.status === 404) {
           setSites(sites.filter(site => site.siteId !== deleteTargetId));
+          showNotification('Site was already deleted.', 'warning');
+        } else {
+          showNotification('Failed to delete site: ' + (e.response?.data?.message || e.message), 'error');
         }
       } finally {
         setDeleteTargetId(null);
@@ -111,10 +117,11 @@ const SitesPage: React.FC = () => {
       // Refresh sites list
       fetchSites();
       setIsModalOpen(false);
+      showNotification(editingId ? "Site updated successfully!" : "Site created successfully!", 'success');
     } catch (e: any) {
       console.error("Failed to save site", e);
-      const errorMsg = e.response?.data || e.message || "Unknown error";
-      alert(`Failed to save site:\n${typeof errorMsg === 'object' ? JSON.stringify(errorMsg) : errorMsg}`);
+      const errorMsg = e.response?.data?.message || e.message || "Unknown error";
+      showNotification(`Failed to save site: ${errorMsg}`, 'error');
     }
   };
 

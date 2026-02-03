@@ -3,6 +3,7 @@ import React, { useState, useEffect } from 'react';
 import Layout from '../components/Layout';
 import Modal from '../components/Modal';
 import { useAuth } from '../context/AuthContext';
+import { useNotification } from '../context/NotificationContext';
 
 import { sensorService, Sensor, CreateSensorRequest } from '../services/sensorService';
 import { hubService, Hub } from '../services/hubService';
@@ -11,6 +12,7 @@ import { signalRService } from '../services/signalrService';
 
 const SensorsPage: React.FC = () => {
   const { hasRole } = useAuth();
+  const { showNotification } = useNotification();
   const canManage = hasRole(['ADMIN', 'MANAGER']);
 
   // State management
@@ -30,17 +32,19 @@ const SensorsPage: React.FC = () => {
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // Fetch sensors và hubs khi component mount
+  // Fetch hubs and setup SignalR on mount
   useEffect(() => {
-    fetchSensors();
     fetchHubs();
-
-    // SignalR Integration
     signalRService.startConnection();
 
-    const handleSensorUpdate = (data: any) => {
-      console.log("Realtime sensor update received:", data);
-      fetchSensors(false); // Silent refresh
+    // Listener for sensor updates
+    const handleSensorUpdate = (updatedSensor: Sensor) => {
+      console.log("Realtime sensor update received:", updatedSensor);
+      setSensors(prevSensors =>
+        prevSensors.map(sensor =>
+          sensor.sensorId === updatedSensor.sensorId ? { ...sensor, ...updatedSensor } : sensor
+        )
+      );
     };
 
     signalRService.on("ReceiveSensorUpdate", handleSensorUpdate);
@@ -48,6 +52,11 @@ const SensorsPage: React.FC = () => {
     return () => {
       signalRService.off("ReceiveSensorUpdate", handleSensorUpdate);
     };
+  }, []);
+
+  // Fetch sensors when filters change
+  useEffect(() => {
+    fetchSensors();
   }, [filterTypeId, filterHubId]);
 
   /**
@@ -92,11 +101,11 @@ const SensorsPage: React.FC = () => {
 
     // Validation
     if (!formData.name.trim()) {
-      alert('Vui lòng nhập tên sensor');
+      showNotification('Vui lòng nhập tên sensor', 'warning');
       return;
     }
     if (formData.hubId === 0) {
-      alert('Vui lòng chọn Hub');
+      showNotification('Vui lòng chọn Hub', 'warning');
       return;
     }
 
@@ -115,11 +124,11 @@ const SensorsPage: React.FC = () => {
       setIsModalOpen(false);
       fetchSensors();
 
-      alert('Tạo sensor thành công!');
+      showNotification('Tạo sensor thành công!', 'success');
     } catch (error: any) {
       console.error("Failed to create sensor", error);
       const errorMsg = error.response?.data?.message || error.message || 'Không thể tạo sensor';
-      alert(`Lỗi: ${errorMsg}`);
+      showNotification(`Lỗi: ${errorMsg}`, 'error');
     } finally {
       setIsSubmitting(false);
     }

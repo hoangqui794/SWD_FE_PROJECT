@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import Layout from '../components/Layout';
 import Modal from '../components/Modal';
 import { useAuth } from '../context/AuthContext';
+import { useNotification } from '../context/NotificationContext';
 
 import { hubService, Hub } from '../services/hubService';
 import { siteService, Site } from '../services/siteService';
@@ -9,6 +10,7 @@ import { signalRService } from '../services/signalrService';
 
 const HubsPage: React.FC = () => {
   const { hasRole } = useAuth();
+  const { showNotification } = useNotification();
   const canManage = hasRole(['ADMIN', 'MANAGER']);
 
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -109,8 +111,10 @@ const HubsPage: React.FC = () => {
       setIsModalOpen(false);
       setFormData({ siteId: 0, name: "", macAddress: "" });
       fetchHubs(); // Refresh list
+      showNotification(editingId ? "Hub updated successfully!" : "Hub created successfully!", 'success');
     } catch (error: any) {
       console.error("Failed to save hub", error);
+      showNotification("Failed to save hub: " + (error.response?.data?.message || error.message), 'error');
     }
   };
 
@@ -127,11 +131,15 @@ const HubsPage: React.FC = () => {
         await hubService.delete(deleteTargetId);
         // Remove locally
         setHubs(hubs.filter(hub => hub.hubId !== deleteTargetId));
+        showNotification("Hub deleted successfully!", 'success');
       } catch (error: any) {
         console.error("Failed to delete hub", error);
         // If 404, it's already gone, so update UI to reflect that
         if (error.response && error.response.status === 404) {
           setHubs(hubs.filter(hub => hub.hubId !== deleteTargetId));
+          showNotification("Hub was already deleted.", 'warning');
+        } else {
+          showNotification("Failed to delete hub: " + (error.response?.data?.message || error.message), 'error');
         }
       } finally {
         setDeleteTargetId(null);
