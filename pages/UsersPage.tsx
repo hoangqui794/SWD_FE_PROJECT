@@ -55,6 +55,9 @@ const UsersPage: React.FC = () => {
 
   const paginate = (pageNumber: number) => setCurrentPage(pageNumber);
 
+  const [editingUserId, setEditingUserId] = useState<number | null>(null);
+  const [deleteTargetId, setDeleteTargetId] = useState<number | null>(null);
+
   const [formData, setFormData] = useState<CreateUserRequest>({
     fullName: "",
     email: "",
@@ -65,7 +68,27 @@ const UsersPage: React.FC = () => {
 
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const handleCreateUser = async () => {
+  // --- Handlers ---
+
+  const handleAddNew = () => {
+    setEditingUserId(null);
+    setFormData({ fullName: "", email: "", roleId: 3, orgId: 1, siteId: 0 });
+    setIsModalOpen(true);
+  };
+
+  const handleEditUser = (user: User) => {
+    setEditingUserId(user.userId);
+    setFormData({
+      fullName: user.fullName,
+      email: user.email,
+      roleId: user.roleId,
+      orgId: user.orgId,
+      siteId: user.siteId || 0
+    });
+    setIsModalOpen(true);
+  };
+
+  const handleSave = async () => {
     if (!formData.fullName || !formData.email) {
       showNotification("Please fill in name and email", 'warning');
       return;
@@ -73,16 +96,40 @@ const UsersPage: React.FC = () => {
 
     setIsSubmitting(true);
     try {
-      await userService.create(formData);
-      showNotification("User created successfully!", 'success');
+      if (editingUserId) {
+        // Update User
+        await userService.update(editingUserId, {
+          fullName: formData.fullName,
+          siteId: formData.siteId
+        });
+        showNotification("User updated successfully!", 'success');
+      } else {
+        // Create User
+        await userService.create(formData);
+        showNotification("User created successfully!", 'success');
+      }
+
       setIsModalOpen(false);
       fetchUsers();
-      setFormData({ fullName: "", email: "", roleId: 3, orgId: 1, siteId: 0 });
     } catch (error: any) {
-      console.error("Failed to create user", error);
-      showNotification("Failed to create user: " + (error.response?.data?.message || error.message), 'error');
+      console.error("Failed to save user", error);
+      showNotification("Failed to save user: " + (error.response?.data?.message || error.message), 'error');
     } finally {
       setIsSubmitting(false);
+    }
+  };
+
+  const confirmDelete = async () => {
+    if (!deleteTargetId) return;
+    try {
+      await userService.delete(deleteTargetId);
+      showNotification("User deleted successfully!", 'success');
+      setUsers(users.filter(u => u.userId !== deleteTargetId));
+    } catch (error: any) {
+      console.error("Failed to delete user", error);
+      showNotification("Failed to delete user: " + (error.response?.data?.message || error.message), 'error');
+    } finally {
+      setDeleteTargetId(null);
     }
   };
 
@@ -93,7 +140,7 @@ const UsersPage: React.FC = () => {
           <h3 className="text-2xl font-bold tracking-tight">IoT Users Administration</h3>
           <p className="text-slate-500 text-sm mt-1">Manage system access for organizations and site staff.</p>
         </div>
-        <button onClick={() => setIsModalOpen(true)} className="px-4 py-2 bg-white text-black hover:bg-slate-200 transition-colors rounded text-xs font-bold flex items-center gap-2">
+        <button onClick={handleAddNew} className="px-4 py-2 bg-white text-black hover:bg-slate-200 transition-colors rounded text-xs font-bold flex items-center gap-2">
           <span className="material-symbols-outlined text-sm">person_add</span> Create User
         </button>
       </div>
@@ -110,6 +157,7 @@ const UsersPage: React.FC = () => {
                 <th className="px-6 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Email</th>
                 <th className="px-6 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Role</th>
                 <th className="px-6 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Status</th>
+                <th className="px-6 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest text-right">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-border-muted">
@@ -126,6 +174,22 @@ const UsersPage: React.FC = () => {
                     <span className={`text-[10px] font-bold uppercase ${user.isActive ? 'text-green-500' : 'text-red-500'}`}>
                       {user.isActive ? 'Active' : 'Inactive'}
                     </span>
+                  </td>
+                  <td className="px-6 py-4 text-right flex justify-end gap-2">
+                    <button
+                      onClick={() => handleEditUser(user)}
+                      className="text-slate-500 hover:text-white transition-colors"
+                      title="Edit"
+                    >
+                      <span className="material-symbols-outlined text-sm">edit</span>
+                    </button>
+                    <button
+                      onClick={() => setDeleteTargetId(user.userId)}
+                      className="text-slate-500 hover:text-red-500 transition-colors"
+                      title="Delete"
+                    >
+                      <span className="material-symbols-outlined text-sm">delete</span>
+                    </button>
                   </td>
                 </tr>
               ))}
@@ -209,7 +273,7 @@ const UsersPage: React.FC = () => {
         </div>
       )}
 
-      <Modal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} title="Create User">
+      <Modal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} title={editingUserId ? "Edit User" : "Create User"}>
         <form className="p-6 space-y-6">
           <div className="space-y-2">
             <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Full Name</label>
@@ -225,11 +289,12 @@ const UsersPage: React.FC = () => {
             <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Email</label>
             <input
               type="email"
-              className="w-full bg-zinc-900 border border-border-muted rounded-lg px-4 py-3 text-sm focus:ring-1 focus:ring-primary outline-none text-white"
               placeholder="r.smith@example.com"
               value={formData.email}
               onChange={(e) => setFormData({ ...formData, email: e.target.value })}
               required
+              disabled={!!editingUserId}
+              className={`w-full bg-zinc-900 border border-border-muted rounded-lg px-4 py-3 text-sm focus:ring-1 focus:ring-primary outline-none text-white ${editingUserId ? 'opacity-50 cursor-not-allowed' : ''}`}
             />
           </div>
 
@@ -237,9 +302,10 @@ const UsersPage: React.FC = () => {
             <div className="space-y-2">
               <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Role</label>
               <select
-                className="w-full bg-zinc-900 border border-border-muted rounded-lg px-4 py-3 text-sm focus:ring-1 focus:ring-primary outline-none text-white"
                 value={formData.roleId}
                 onChange={(e) => setFormData({ ...formData, roleId: Number(e.target.value) })}
+                disabled={!!editingUserId}
+                className={`w-full bg-zinc-900 border border-border-muted rounded-lg px-4 py-3 text-sm focus:ring-1 focus:ring-primary outline-none text-white ${editingUserId ? 'opacity-50 cursor-not-allowed' : ''}`}
               >
                 <option value={1}>Admin</option>
                 <option value={2}>Manager</option>
@@ -271,15 +337,44 @@ const UsersPage: React.FC = () => {
               Cancel
             </button>
             <button
-              onClick={handleCreateUser}
+              onClick={handleSave}
               disabled={isSubmitting}
               className="flex-1 px-6 py-2.5 bg-white text-black rounded text-xs font-bold uppercase hover:bg-slate-200 disabled:opacity-50"
               type="button"
             >
-              {isSubmitting ? "Creating..." : "Create User"}
+              {isSubmitting ? "Saving..." : (editingUserId ? "Save Changes" : "Create User")}
             </button>
           </div>
         </form>
+      </Modal>
+
+      {/* Delete Confirmation Modal */}
+      <Modal isOpen={!!deleteTargetId} onClose={() => setDeleteTargetId(null)} title="Confirm Deletion">
+        <div className="p-6 space-y-4">
+          <div className="flex flex-col items-center justify-center text-center space-y-2 py-4">
+            <div className="w-12 h-12 rounded-full bg-red-500/10 flex items-center justify-center mb-2">
+              <span className="material-symbols-outlined text-red-500 text-2xl">warning</span>
+            </div>
+            <h4 className="text-lg font-bold text-white">Delete User?</h4>
+            <p className="text-slate-400 text-sm">
+              Are you sure you want to delete this user? This account will no longer be able to log in.
+            </p>
+          </div>
+          <div className="flex gap-3 pt-2">
+            <button
+              onClick={() => setDeleteTargetId(null)}
+              className="flex-1 px-6 py-2.5 border border-border-muted text-slate-400 rounded text-xs font-bold uppercase hover:bg-white/5"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={confirmDelete}
+              className="flex-1 px-6 py-2.5 bg-red-500 text-white rounded text-xs font-bold uppercase hover:bg-red-600 shadow-lg shadow-red-500/20"
+            >
+              Yes, Delete
+            </button>
+          </div>
+        </div>
       </Modal>
     </Layout>
   );

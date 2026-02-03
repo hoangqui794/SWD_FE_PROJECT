@@ -21,6 +21,11 @@ export interface CreateUserRequest {
     roleId: number;
 }
 
+export interface UpdateUserRequest {
+    fullName: string;
+    siteId: number;
+}
+
 export const userService = {
     getAll: async (): Promise<User[]> => {
         const response = await apiClient.get<{ message: string; count: number; data: User[] }>('/api/users');
@@ -29,5 +34,13 @@ export const userService = {
 
     create: async (data: CreateUserRequest): Promise<void> => {
         await apiClient.post('/api/users', data);
+    },
+
+    update: async (id: number, data: UpdateUserRequest): Promise<void> => {
+        await apiClient.put(`/api/users/${id}`, data);
+    },
+
+    delete: async (id: number): Promise<void> => {
+        await apiClient.delete(`/api/users/${id}`);
     }
 };
