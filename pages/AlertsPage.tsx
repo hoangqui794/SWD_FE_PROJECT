@@ -1,5 +1,7 @@
+
 import React, { useState, useEffect } from 'react';
 import Layout from '../components/Layout';
+import Modal from '../components/Modal';
 import { alertService, Alert } from '../services/alertService';
 
 const AlertsPage: React.FC = () => {
@@ -15,13 +17,33 @@ const AlertsPage: React.FC = () => {
   const [pageSize] = useState(20); // 20 alerts per page
   const [totalCount, setTotalCount] = useState(0);
 
+  // Delete modal state
+  const [alertToDelete, setAlertToDelete] = useState<number | null>(null);
+
+  // Notification state
+  const [notification, setNotification] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
+
   // Calculate total pages
   const totalPages = Math.ceil(totalCount / pageSize);
+
+  // Auto-dismiss notification
+  useEffect(() => {
+    if (notification) {
+      const timer = setTimeout(() => {
+        setNotification(null);
+      }, 3000);
+      return () => clearTimeout(timer);
+    }
+  }, [notification]);
 
   // Fetch alerts khi component mount hoặc khi filter/search/page thay đổi
   useEffect(() => {
     fetchAlerts();
   }, [filterStatus, searchTerm, currentPage]);
+
+  const showNotification = (message: string, type: 'success' | 'error') => {
+    setNotification({ message, type });
+  };
 
   /**
    * Hàm gọi API để lấy danh sách alerts
@@ -46,36 +68,44 @@ const AlertsPage: React.FC = () => {
   /**
    * Hàm xử lý resolve alert
    */
-  /**
-   * Hàm xử lý resolve alert
-   */
   const handleResolve = async (id: number) => {
     try {
       const response = await alertService.resolve(id);
       // Cập nhật local state
       setAlerts(alerts.map(a => a.id === id ? { ...a, status: 'Resolved' } : a));
-      // Hiển thị thông báo thành công từ API (optional, hiện tại dùng optimistic update nên có thể không cần alert để tránh spam, nhưng log ra console)
-      console.log("Resolved:", response.message);
+      showNotification(response.message || "Đã xử lý cảnh báo thành công!", 'success');
     } catch (error: any) {
       console.error("Failed to resolve alert", error);
-      alert('Không thể resolve alert: ' + (error.response?.data?.message || error.message));
+      showNotification('Không thể xử lý alert: ' + (error.response?.data?.message || error.message), 'error');
     }
   };
 
   /**
-   * Hàm xử lý xóa alert
+   * Hàm xử lý xóa alert - Mở modal xác nhận
    */
-  const handleDelete = async (id: number) => {
-    if (!confirm('Bạn có chắc muốn xóa alert này?')) return;
+  const handleDelete = (id: number) => {
+    setAlertToDelete(id);
+  };
+
+  /**
+   * Hàm thực hiện xóa alert sau khi xác nhận
+   */
+  const confirmDelete = async () => {
+    if (alertToDelete === null) return;
 
     try {
-      await alertService.delete(id);
+      await alertService.delete(alertToDelete);
       // Xóa khỏi local state
-      setAlerts(alerts.filter(a => a.id !== id));
+      setAlerts(alerts.filter(a => a.id !== alertToDelete));
       setTotalCount(prev => prev - 1);
+      setAlertToDelete(null); // Đóng modal
+      showNotification("Đã xóa alert log thành công!", 'success');
     } catch (error: any) {
       console.error("Failed to delete alert", error);
-      alert('Không thể xóa alert: ' + (error.response?.data?.message || error.message));
+      setAlertToDelete(null);
+      // Hiển thị notification lỗi thay vì alert
+      const errorMsg = error.response?.data?.message || error.message;
+      showNotification('Lỗi: ' + errorMsg, 'error');
     }
   };
 
@@ -144,7 +174,7 @@ const AlertsPage: React.FC = () => {
         </div>
       </div>
 
-      <div className="bg-white/5 rounded-xl border border-border-muted overflow-hidden">
+      <div className="bg-white/5 rounded-xl border border-border-muted overflow-hidden relative">
         <div className="p-4 border-b border-border-muted flex gap-4 items-center justify-between bg-zinc-900/30">
           <div className="relative w-full max-w-sm">
             <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 text-sm">search</span>
@@ -192,7 +222,7 @@ const AlertsPage: React.FC = () => {
           </div>
         ) : (
           /* Data Table */
-          <div className="overflow-x-auto">
+          <div className="overflow-x-auto min-h-[400px]">
             <table className="w-full text-left whitespace-nowrap">
               <thead className="bg-zinc-900/50 border-b border-border-muted">
                 <tr>
@@ -265,30 +295,24 @@ const AlertsPage: React.FC = () => {
             </div>
 
             <div className="flex items-center gap-2">
-              {/* First Page */}
               <button
                 onClick={goToFirstPage}
                 disabled={currentPage === 1}
                 className="px-3 py-1.5 text-xs font-bold bg-zinc-800 hover:bg-zinc-700 disabled:opacity-30 disabled:cursor-not-allowed border border-border-muted rounded transition-colors"
-                title="First Page"
               >
                 <span className="material-symbols-outlined text-sm">first_page</span>
               </button>
 
-              {/* Previous Page */}
               <button
                 onClick={goToPrevPage}
                 disabled={currentPage === 1}
                 className="px-3 py-1.5 text-xs font-bold bg-zinc-800 hover:bg-zinc-700 disabled:opacity-30 disabled:cursor-not-allowed border border-border-muted rounded transition-colors"
-                title="Previous Page"
               >
                 <span className="material-symbols-outlined text-sm">chevron_left</span>
               </button>
 
-              {/* Page Numbers */}
               <div className="flex items-center gap-1">
                 {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
-                  // Show pages around current page
                   let pageNum;
                   if (totalPages <= 5) {
                     pageNum = i + 1;
@@ -305,8 +329,8 @@ const AlertsPage: React.FC = () => {
                       key={pageNum}
                       onClick={() => goToPage(pageNum)}
                       className={`px-3 py-1.5 text-xs font-bold border border-border-muted rounded transition-colors ${currentPage === pageNum
-                        ? 'bg-white text-black'
-                        : 'bg-zinc-800 hover:bg-zinc-700 text-white'
+                          ? 'bg-white text-black'
+                          : 'bg-zinc-800 hover:bg-zinc-700 text-white'
                         }`}
                     >
                       {pageNum}
@@ -315,22 +339,18 @@ const AlertsPage: React.FC = () => {
                 })}
               </div>
 
-              {/* Next Page */}
               <button
                 onClick={goToNextPage}
                 disabled={currentPage === totalPages}
                 className="px-3 py-1.5 text-xs font-bold bg-zinc-800 hover:bg-zinc-700 disabled:opacity-30 disabled:cursor-not-allowed border border-border-muted rounded transition-colors"
-                title="Next Page"
               >
                 <span className="material-symbols-outlined text-sm">chevron_right</span>
               </button>
 
-              {/* Last Page */}
               <button
                 onClick={goToLastPage}
                 disabled={currentPage === totalPages}
                 className="px-3 py-1.5 text-xs font-bold bg-zinc-800 hover:bg-zinc-700 disabled:opacity-30 disabled:cursor-not-allowed border border-border-muted rounded transition-colors"
-                title="Last Page"
               >
                 <span className="material-symbols-outlined text-sm">last_page</span>
               </button>
@@ -338,6 +358,65 @@ const AlertsPage: React.FC = () => {
           </div>
         )}
       </div>
+
+      {/* Delete Confirmation Modal */}
+      <Modal
+        isOpen={alertToDelete !== null}
+        onClose={() => setAlertToDelete(null)}
+        title="Confirm Delete"
+      >
+        <div className="p-6">
+          <div className="flex items-center gap-4 mb-4 text-red-500 bg-red-500/10 p-4 rounded-lg border border-red-500/20">
+            <span className="material-symbols-outlined text-3xl">warning</span>
+            <div>
+              <h4 className="font-bold uppercase text-sm">Warning: Irreversible Action</h4>
+              <p className="text-xs opacity-80 mt-1">This action cannot be undone.</p>
+            </div>
+          </div>
+
+          <p className="text-slate-300 text-sm mb-6">
+            Are you sure you want to permanently delete this alert log?
+            This will remove the record from the database.
+          </p>
+
+          <div className="flex gap-3">
+            <button
+              onClick={() => setAlertToDelete(null)}
+              className="flex-1 px-4 py-2.5 border border-border-muted text-white rounded text-xs font-bold uppercase hover:bg-white/5 transition-colors"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={confirmDelete}
+              className="flex-1 px-4 py-2.5 bg-red-500 text-white rounded text-xs font-bold uppercase hover:bg-red-600 transition-colors shadow-lg shadow-red-500/20"
+            >
+              Delete Log
+            </button>
+          </div>
+        </div>
+      </Modal>
+
+      {/* Toast Notification */}
+      {notification && (
+        <div className={`fixed top-4 right-4 z-50 flex items-center gap-3 px-4 py-3 rounded shadow-2xl border transition-all duration-300 animate-slide-in ${notification.type === 'success'
+            ? 'bg-zinc-900 border-green-500 text-green-500'
+            : 'bg-zinc-900 border-red-500 text-red-500'
+          }`}>
+          <span className="material-symbols-outlined">
+            {notification.type === 'success' ? 'check_circle' : 'error'}
+          </span>
+          <div>
+            <h4 className="font-bold uppercase text-[10px] tracking-wider">{notification.type === 'success' ? 'Success' : 'Error'}</h4>
+            <p className="text-xs text-white/90 mt-0.5">{notification.message}</p>
+          </div>
+          <button
+            onClick={() => setNotification(null)}
+            className="ml-2 hover:bg-white/10 rounded p-1 transition-colors"
+          >
+            <span className="material-symbols-outlined text-sm">close</span>
+          </button>
+        </div>
+      )}
     </Layout>
   );
 };
