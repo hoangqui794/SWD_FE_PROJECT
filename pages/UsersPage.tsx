@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import Layout from '../components/Layout';
 import Modal from '../components/Modal';
-import { userService, User } from '../services/userService';
+import { userService, User, CreateUserRequest } from '../services/userService';
+import { siteService, Site } from '../services/siteService';
 import { Role } from '../types/auth';
 import { useNotification } from '../context/NotificationContext';
 
@@ -9,6 +10,7 @@ const UsersPage: React.FC = () => {
   const { showNotification } = useNotification();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [users, setUsers] = useState<User[]>([]);
+  const [sites, setSites] = useState<Site[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -19,7 +21,17 @@ const UsersPage: React.FC = () => {
 
   useEffect(() => {
     fetchUsers();
+    fetchSites();
   }, []);
+
+  const fetchSites = async () => {
+    try {
+      const data = await siteService.getAll();
+      setSites(data);
+    } catch (e) {
+      console.error("Failed to fetch sites", e);
+    }
+  };
 
   const fetchUsers = async () => {
     setIsLoading(true);
@@ -43,16 +55,35 @@ const UsersPage: React.FC = () => {
 
   const paginate = (pageNumber: number) => setCurrentPage(pageNumber);
 
-  const [formData, setFormData] = useState({
-    name: "",
+  const [formData, setFormData] = useState<CreateUserRequest>({
+    fullName: "",
     email: "",
-    role: "STAFF"
+    roleId: 3,
+    orgId: 1,
+    siteId: 0
   });
 
-  const handleCreateUser = () => {
-    // Placeholder for create user logic
-    showNotification("Create user functionality not yet implemented via API", 'info');
-    setIsModalOpen(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const handleCreateUser = async () => {
+    if (!formData.fullName || !formData.email) {
+      showNotification("Please fill in name and email", 'warning');
+      return;
+    }
+
+    setIsSubmitting(true);
+    try {
+      await userService.create(formData);
+      showNotification("User created successfully!", 'success');
+      setIsModalOpen(false);
+      fetchUsers();
+      setFormData({ fullName: "", email: "", roleId: 3, orgId: 1, siteId: 0 });
+    } catch (error: any) {
+      console.error("Failed to create user", error);
+      showNotification("Failed to create user: " + (error.response?.data?.message || error.message), 'error');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -185,8 +216,8 @@ const UsersPage: React.FC = () => {
             <input
               className="w-full bg-zinc-900 border border-border-muted rounded-lg px-4 py-3 text-sm focus:ring-1 focus:ring-primary outline-none text-white"
               placeholder="e.g. Robert Smith"
-              value={formData.name}
-              onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+              value={formData.fullName}
+              onChange={(e) => setFormData({ ...formData, fullName: e.target.value })}
               required
             />
           </div>
@@ -201,18 +232,36 @@ const UsersPage: React.FC = () => {
               required
             />
           </div>
-          <div className="space-y-2">
-            <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Role</label>
-            <select
-              className="w-full bg-zinc-900 border border-border-muted rounded-lg px-4 py-3 text-sm focus:ring-1 focus:ring-primary outline-none text-white"
-              value={formData.role}
-              onChange={(e) => setFormData({ ...formData, role: e.target.value as Role })}
-            >
-              <option value="ADMIN">Admin</option>
-              <option value="MANAGER">Manager</option>
-              <option value="USER">User</option>
-            </select>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Role</label>
+              <select
+                className="w-full bg-zinc-900 border border-border-muted rounded-lg px-4 py-3 text-sm focus:ring-1 focus:ring-primary outline-none text-white"
+                value={formData.roleId}
+                onChange={(e) => setFormData({ ...formData, roleId: Number(e.target.value) })}
+              >
+                <option value={1}>Admin</option>
+                <option value={2}>Manager</option>
+                <option value={3}>Staff</option>
+              </select>
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Assigned Site</label>
+              <select
+                className="w-full bg-zinc-900 border border-border-muted rounded-lg px-4 py-3 text-sm focus:ring-1 focus:ring-primary outline-none text-white"
+                value={formData.siteId}
+                onChange={(e) => setFormData({ ...formData, siteId: Number(e.target.value) })}
+              >
+                <option value={0}>-- No Site (Head Office) --</option>
+                {sites.map(site => (
+                  <option key={site.siteId} value={site.siteId}>{site.name}</option>
+                ))}
+              </select>
+            </div>
           </div>
+
           <div className="flex gap-3 pt-4">
             <button
               onClick={() => setIsModalOpen(false)}
@@ -223,10 +272,11 @@ const UsersPage: React.FC = () => {
             </button>
             <button
               onClick={handleCreateUser}
-              className="flex-1 px-6 py-2.5 bg-white text-black rounded text-xs font-bold uppercase hover:bg-slate-200"
+              disabled={isSubmitting}
+              className="flex-1 px-6 py-2.5 bg-white text-black rounded text-xs font-bold uppercase hover:bg-slate-200 disabled:opacity-50"
               type="button"
             >
-              Create User
+              {isSubmitting ? "Creating..." : "Create User"}
             </button>
           </div>
         </form>
