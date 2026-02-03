@@ -50,7 +50,14 @@ const UsersPage: React.FC = () => {
   // Pagination Logic
   const indexOfLastItem = currentPage * itemsPerPage;
   const indexOfFirstItem = indexOfLastItem - itemsPerPage;
-  const currentUsers = users.slice(indexOfFirstItem, indexOfLastItem);
+
+  // Sort: Active first, then by ID
+  const sortedUsers = [...users].sort((a, b) => {
+    if (a.isActive === b.isActive) return 0;
+    return a.isActive ? -1 : 1;
+  });
+
+  const currentUsers = sortedUsers.slice(indexOfFirstItem, indexOfLastItem);
   const totalPages = Math.ceil(users.length / itemsPerPage);
 
   const paginate = (pageNumber: number) => setCurrentPage(pageNumber);
@@ -400,8 +407,8 @@ const UsersPage: React.FC = () => {
             <button
               onClick={confirmStatusChange}
               className={`flex-1 px-6 py-2.5 text-white rounded text-xs font-bold uppercase shadow-lg ${statusConfirmUser?.isActive
-                  ? 'bg-red-500 hover:bg-red-600 shadow-red-500/20'
-                  : 'bg-green-500 hover:bg-green-600 shadow-green-500/20'
+                ? 'bg-red-500 hover:bg-red-600 shadow-red-500/20'
+                : 'bg-green-500 hover:bg-green-600 shadow-green-500/20'
                 }`}
             >
               {statusConfirmUser?.isActive ? "Yes, Deactivate" : "Yes, Activate"}

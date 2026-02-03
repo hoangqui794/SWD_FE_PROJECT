@@ -28,6 +28,7 @@ const AlertsPage: React.FC = () => {
     const [pageSize] = useState(20);
     const [totalCount, setTotalCount] = useState(0);
     const [alertToDelete, setAlertToDelete] = useState<number | null>(null);
+    const [resolveConfirmId, setResolveConfirmId] = useState<number | null>(null);
 
     // --- Alert Rules State ---
     const [rules, setRules] = useState<AlertRule[]>([]);
@@ -114,13 +115,20 @@ const AlertsPage: React.FC = () => {
 
     // --- Handlers: History ---
 
-    const handleResolve = async (id: number) => {
+    const initiateResolve = (id: number) => {
+        setResolveConfirmId(id);
+    };
+
+    const confirmResolve = async () => {
+        if (!resolveConfirmId) return;
         try {
-            const response = await alertService.resolve(id);
-            setAlerts(alerts.map(a => a.id === id ? { ...a, status: 'Resolved' } : a));
+            const response = await alertService.resolve(resolveConfirmId);
+            setAlerts(alerts.map(a => a.id === resolveConfirmId ? { ...a, status: 'Resolved' } : a));
             showNotification(response.message || "Alert resolved successfully!", 'success');
         } catch (error: any) {
             showNotification('Failed to resolve: ' + (error.response?.data?.message || error.message), 'error');
+        } finally {
+            setResolveConfirmId(null);
         }
     };
 
@@ -349,7 +357,7 @@ const AlertsPage: React.FC = () => {
                                                 <td className="px-6 py-4 text-right">
                                                     <div className="flex items-center justify-end gap-2">
                                                         {alert.status === 'Active' && (
-                                                            <button onClick={() => handleResolve(alert.id)} className="px-3 py-1 bg-green-500/10 text-green-500 border border-green-500/50 rounded hover:bg-green-500/20 text-[10px] font-bold uppercase transition-colors">
+                                                            <button onClick={() => initiateResolve(alert.id)} className="px-3 py-1 bg-green-500/10 text-green-500 border border-green-500/50 rounded hover:bg-green-500/20 text-[10px] font-bold uppercase transition-colors">
                                                                 Resolve
                                                             </button>
                                                         )}
@@ -450,6 +458,24 @@ const AlertsPage: React.FC = () => {
                     <div className="flex gap-3">
                         <button onClick={() => setAlertToDelete(null)} className="flex-1 px-4 py-2.5 border border-border-muted text-white rounded text-xs font-bold uppercase hover:bg-white/5">Cancel</button>
                         <button onClick={confirmDeleteAlert} className="flex-1 px-4 py-2.5 bg-red-500 text-white rounded text-xs font-bold uppercase hover:bg-red-600 shadow-lg shadow-red-500/20">Delete Log</button>
+                    </div>
+                </div>
+            </Modal>
+
+            {/* 1.5. Resolve Confirm Modal */}
+            <Modal isOpen={resolveConfirmId !== null} onClose={() => setResolveConfirmId(null)} title="Confirm Resolve">
+                <div className="p-6">
+                    <div className="flex items-center gap-4 mb-4 text-green-500 bg-green-500/10 p-4 rounded-lg border border-green-500/20">
+                        <span className="material-symbols-outlined text-3xl">check_circle</span>
+                        <div>
+                            <h4 className="font-bold uppercase text-sm">Resolve Alert</h4>
+                            <p className="text-xs opacity-80 mt-1">Mark this issue as resolved?</p>
+                        </div>
+                    </div>
+                    <p className="text-slate-300 text-sm mb-6">This will update the alert status to "Resolved".</p>
+                    <div className="flex gap-3">
+                        <button onClick={() => setResolveConfirmId(null)} className="flex-1 px-4 py-2.5 border border-border-muted text-white rounded text-xs font-bold uppercase hover:bg-white/5">Cancel</button>
+                        <button onClick={confirmResolve} className="flex-1 px-4 py-2.5 bg-green-500 text-white rounded text-xs font-bold uppercase hover:bg-green-600 shadow-lg shadow-green-500/20">Yes, Resolve</button>
                     </div>
                 </div>
             </Modal>
