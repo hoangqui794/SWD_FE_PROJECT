@@ -17,19 +17,23 @@ const Layout: React.FC<LayoutProps> = ({ children, title, breadcrumb }) => {
 
   return (
     <div className="flex min-h-screen bg-background-light dark:bg-background-dark text-slate-900 dark:text-white relative">
-      <Sidebar isOpen={isSidebarOpen} onClose={() => setIsSidebarOpen(false)} />
-      
+      <Sidebar
+        isOpen={isSidebarOpen}
+        onClose={() => setIsSidebarOpen(false)}
+      />
+
       {/* Mobile Overlay */}
       {isSidebarOpen && (
-        <div 
+        <div
           className="fixed inset-0 bg-black/60 backdrop-blur-sm z-40 md:hidden"
           onClick={() => setIsSidebarOpen(false)}
         />
       )}
 
-      <div className="flex-1 flex flex-col min-w-0">
+      {/* Main Content - Added md:pl-20 to reserve space for collapsed sidebar */}
+      <div className="flex-1 flex flex-col min-w-0 md:pl-20 transition-all duration-300">
         <Header title={title} breadcrumb={breadcrumb} onMenuClick={toggleSidebar} />
-        <main className="p-4 md:p-8 overflow-y-auto max-w-7xl mx-auto w-full flex-1">
+        <main className="p-4 md:p-8 overflow-y-auto w-full flex-1">
           {children}
           <Footer />
         </main>

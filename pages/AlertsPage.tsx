@@ -33,6 +33,7 @@ const AlertsPage: React.FC = () => {
     const [sensors, setSensors] = useState<Sensor[]>([]);
     const [isRuleModalOpen, setIsRuleModalOpen] = useState(false);
     const [isSubmittingRule, setIsSubmittingRule] = useState(false);
+    const [editingRuleId, setEditingRuleId] = useState<number | null>(null); // State to track editing
     const [ruleFormData, setRuleFormData] = useState<CreateAlertRuleRequest>({
         sensorId: 0,
         name: '',
@@ -148,6 +149,34 @@ const AlertsPage: React.FC = () => {
 
     // --- Handlers: Rules ---
 
+    const handleOpenCreateRule = () => {
+        setEditingRuleId(null);
+        setRuleFormData({
+            sensorId: 0,
+            name: '',
+            conditionType: 'MinMax',
+            minVal: 0,
+            maxVal: 100,
+            notificationMethod: 'Email',
+            priority: 'Warning'
+        });
+        setIsRuleModalOpen(true);
+    };
+
+    const handleEditRule = (rule: AlertRule) => {
+        setEditingRuleId(rule.ruleId);
+        setRuleFormData({
+            sensorId: rule.sensorId,
+            name: rule.name,
+            conditionType: rule.conditionType,
+            minVal: rule.minVal,
+            maxVal: rule.maxVal,
+            notificationMethod: rule.notificationMethod,
+            priority: rule.priority
+        });
+        setIsRuleModalOpen(true);
+    };
+
     const handleCreateRule = async (e: React.FormEvent) => {
         e.preventDefault();
         if (!ruleFormData.name || ruleFormData.sensorId === 0) {
@@ -157,23 +186,20 @@ const AlertsPage: React.FC = () => {
 
         setIsSubmittingRule(true);
         try {
-            await alertService.createRule(ruleFormData);
-            showNotification('Alert rule created successfully!', 'success');
+            if (editingRuleId) {
+                await alertService.updateRule(editingRuleId, ruleFormData);
+                showNotification('Alert rule updated successfully!', 'success');
+            } else {
+                await alertService.createRule(ruleFormData);
+                showNotification('Alert rule created successfully!', 'success');
+            }
+
             setIsRuleModalOpen(false);
             fetchRules(); // Refresh list
-            // Reset form
-            setRuleFormData({
-                sensorId: 0,
-                name: '',
-                conditionType: 'MinMax',
-                minVal: 0,
-                maxVal: 100,
-                notificationMethod: 'Email',
-                priority: 'Warning'
-            });
+            handleOpenCreateRule(); // Reset form
         } catch (error: any) {
-            console.error("Create rule failed", error);
-            showNotification('Create failed: ' + (error.response?.data?.message || error.message), 'error');
+            console.error(editingRuleId ? "Update rule failed" : "Create rule failed", error);
+            showNotification((editingRuleId ? 'Update failed: ' : 'Create failed: ') + (error.response?.data?.message || error.message), 'error');
         } finally {
             setIsSubmittingRule(false);
         }
@@ -254,7 +280,7 @@ const AlertsPage: React.FC = () => {
                 {activeTab === 'rules' && canManage && (
                     <div className="flex justify-end">
                         <button
-                            onClick={() => setIsRuleModalOpen(true)}
+                            onClick={handleOpenCreateRule}
                             className="px-4 py-2 bg-primary text-black rounded text-xs font-bold uppercase hover:bg-primary-light transition-all shadow-lg shadow-primary/20 flex items-center gap-2"
                         >
                             <span className="material-symbols-outlined text-sm">add</span>
@@ -372,6 +398,7 @@ const AlertsPage: React.FC = () => {
                                     <th className="px-6 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Threshold</th>
                                     <th className="px-6 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Priority</th>
                                     <th className="px-6 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Notify</th>
+                                    {canManage && <th className="px-6 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest text-right">Actions</th>}
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-border-muted">
@@ -392,6 +419,17 @@ const AlertsPage: React.FC = () => {
                                             <span className="material-symbols-outlined text-sm">mail</span>
                                             {rule.notificationMethod}
                                         </td>
+                                        {canManage && (
+                                            <td className="px-6 py-4 text-right">
+                                                <button
+                                                    onClick={() => handleEditRule(rule)}
+                                                    className="p-1 text-slate-500 hover:text-white transition-colors"
+                                                    title="Edit Rule"
+                                                >
+                                                    <span className="material-symbols-outlined text-sm">edit</span>
+                                                </button>
+                                            </td>
+                                        )}
                                     </tr>
                                 ))}
                                 {rules.length === 0 && (
@@ -424,7 +462,7 @@ const AlertsPage: React.FC = () => {
             </Modal>
 
             {/* 2. Create Rule Modal */}
-            <Modal isOpen={isRuleModalOpen} onClose={() => setIsRuleModalOpen(false)} title="Create Alert Rule">
+            <Modal isOpen={isRuleModalOpen} onClose={() => setIsRuleModalOpen(false)} title={editingRuleId ? "Edit Alert Rule" : "Create Alert Rule"}>
                 <form onSubmit={handleCreateRule} className="p-6 space-y-5">
                     <div>
                         <label className="block text-xs font-bold text-slate-400 uppercase mb-2">Rule Name</label>
@@ -515,7 +553,7 @@ const AlertsPage: React.FC = () => {
                     <div className="pt-6 flex gap-3 border-t border-border-muted mt-2">
                         <button type="button" onClick={() => setIsRuleModalOpen(false)} className="flex-1 px-4 py-2.5 border border-zinc-700 text-slate-300 rounded text-xs font-bold uppercase hover:bg-white/5 transition-colors">Cancel</button>
                         <button disabled={isSubmittingRule} type="submit" className="flex-1 px-4 py-2.5 bg-primary text-black rounded text-xs font-bold uppercase hover:bg-primary-light disabled:opacity-50 shadow-lg shadow-primary/20 transition-all">
-                            {isSubmittingRule ? 'Saving...' : 'Create Rule'}
+                            {isSubmittingRule ? 'Saving...' : (editingRuleId ? 'Update Rule' : 'Create Rule')}
                         </button>
                     </div>
                 </form>

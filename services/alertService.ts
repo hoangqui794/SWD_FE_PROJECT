@@ -72,6 +72,14 @@ export const alertService = {
     },
 
     /**
+     * Cập nhật quy tắc cảnh báo
+     */
+    updateRule: async (id: number, data: CreateAlertRuleRequest): Promise<any> => {
+        const response = await apiClient.put(`/api/alerts/rules/${id}`, data);
+        return response.data;
+    },
+
+    /**
      * Đánh dấu alert là đã resolved
      * @param id - ID của alert
      */
