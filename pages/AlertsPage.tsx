@@ -2,423 +2,534 @@
 import React, { useState, useEffect } from 'react';
 import Layout from '../components/Layout';
 import Modal from '../components/Modal';
-import { alertService, Alert } from '../services/alertService';
+import { alertService, Alert, AlertRule, CreateAlertRuleRequest } from '../services/alertService';
+import { sensorService, Sensor } from '../services/sensorService';
 
 const AlertsPage: React.FC = () => {
-  // State management
-  const [alerts, setAlerts] = useState<Alert[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [filterStatus, setFilterStatus] = useState<'All' | 'Active' | 'Resolved'>('All');
-  const [searchTerm, setSearchTerm] = useState("");
+    // Tabs: 'history' or 'rules'
+    const [activeTab, setActiveTab] = useState<'history' | 'rules'>('history');
 
-  // Pagination state
-  const [currentPage, setCurrentPage] = useState(1);
-  const [pageSize] = useState(20); // 20 alerts per page
-  const [totalCount, setTotalCount] = useState(0);
+    // --- Common State ---
+    const [isLoading, setIsLoading] = useState(true);
+    const [error, setError] = useState<string | null>(null);
+    const [notification, setNotification] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
 
-  // Delete modal state
-  const [alertToDelete, setAlertToDelete] = useState<number | null>(null);
+    // --- Alert History State ---
+    const [alerts, setAlerts] = useState<Alert[]>([]);
+    const [filterStatus, setFilterStatus] = useState<'All' | 'Active' | 'Resolved'>('All');
+    const [searchTerm, setSearchTerm] = useState("");
+    const [currentPage, setCurrentPage] = useState(1);
+    const [pageSize] = useState(20);
+    const [totalCount, setTotalCount] = useState(0);
+    const [alertToDelete, setAlertToDelete] = useState<number | null>(null);
 
-  // Notification state
-  const [notification, setNotification] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
+    // --- Alert Rules State ---
+    const [rules, setRules] = useState<AlertRule[]>([]);
+    const [sensors, setSensors] = useState<Sensor[]>([]);
+    const [isRuleModalOpen, setIsRuleModalOpen] = useState(false);
+    const [isSubmittingRule, setIsSubmittingRule] = useState(false);
+    const [ruleFormData, setRuleFormData] = useState<CreateAlertRuleRequest>({
+        sensorId: 0,
+        name: '',
+        conditionType: 'MinMax',
+        minVal: 0,
+        maxVal: 100,
+        notificationMethod: 'Email',
+        priority: 'Warning'
+    });
 
-  // Calculate total pages
-  const totalPages = Math.ceil(totalCount / pageSize);
+    // Derived state
+    const totalPages = Math.ceil(totalCount / pageSize);
 
-  // Auto-dismiss notification
-  useEffect(() => {
-    if (notification) {
-      const timer = setTimeout(() => {
-        setNotification(null);
-      }, 3000);
-      return () => clearTimeout(timer);
-    }
-  }, [notification]);
+    // --- Effects ---
 
-  // Fetch alerts khi component mount hoặc khi filter/search/page thay đổi
-  useEffect(() => {
-    fetchAlerts();
-  }, [filterStatus, searchTerm, currentPage]);
+    // Auto-dismiss notification
+    useEffect(() => {
+        if (notification) {
+            const timer = setTimeout(() => setNotification(null), 3000);
+            return () => clearTimeout(timer);
+        }
+    }, [notification]);
 
-  const showNotification = (message: string, type: 'success' | 'error') => {
-    setNotification({ message, type });
-  };
+    // Fetch data based on active tab
+    useEffect(() => {
+        if (activeTab === 'history') {
+            fetchAlerts();
+        } else {
+            fetchRules();
+            fetchSensors(); // Load sensors for dropdown
+        }
+    }, [activeTab, filterStatus, searchTerm, currentPage]);
 
-  /**
-   * Hàm gọi API để lấy danh sách alerts
-   */
-  const fetchAlerts = async () => {
-    setIsLoading(true);
-    setError(null);
-    try {
-      const data = await alertService.getAll(filterStatus, searchTerm);
-      setAlerts(data);
-      // Note: API hiện tại trả về tất cả data, chưa có pagination từ backend
-      // Chúng ta sẽ implement client-side pagination
-      setTotalCount(data.length);
-    } catch (error) {
-      console.error("Failed to fetch alerts", error);
-      setError('Không thể tải dữ liệu alerts. Vui lòng kiểm tra kết nối.');
-    } finally {
-      setIsLoading(false);
-    }
-  };
+    // --- Helpers ---
 
-  /**
-   * Hàm xử lý resolve alert
-   */
-  const handleResolve = async (id: number) => {
-    try {
-      const response = await alertService.resolve(id);
-      // Cập nhật local state
-      setAlerts(alerts.map(a => a.id === id ? { ...a, status: 'Resolved' } : a));
-      showNotification(response.message || "Đã xử lý cảnh báo thành công!", 'success');
-    } catch (error: any) {
-      console.error("Failed to resolve alert", error);
-      showNotification('Không thể xử lý alert: ' + (error.response?.data?.message || error.message), 'error');
-    }
-  };
+    const showNotification = (message: string, type: 'success' | 'error') => {
+        setNotification({ message, type });
+    };
 
-  /**
-   * Hàm xử lý xóa alert - Mở modal xác nhận
-   */
-  const handleDelete = (id: number) => {
-    setAlertToDelete(id);
-  };
+    const getSeverityStyle = (severity: string) => {
+        return severity === 'Critical'
+            ? 'bg-red-500/10 border-red-500 text-red-500'
+            : 'bg-amber-500/10 border-amber-500 text-amber-500';
+    };
 
-  /**
-   * Hàm thực hiện xóa alert sau khi xác nhận
-   */
-  const confirmDelete = async () => {
-    if (alertToDelete === null) return;
+    // --- API Calls ---
 
-    try {
-      await alertService.delete(alertToDelete);
-      // Xóa khỏi local state
-      setAlerts(alerts.filter(a => a.id !== alertToDelete));
-      setTotalCount(prev => prev - 1);
-      setAlertToDelete(null); // Đóng modal
-      showNotification("Đã xóa alert log thành công!", 'success');
-    } catch (error: any) {
-      console.error("Failed to delete alert", error);
-      setAlertToDelete(null);
-      // Hiển thị notification lỗi thay vì alert
-      const errorMsg = error.response?.data?.message || error.message;
-      showNotification('Lỗi: ' + errorMsg, 'error');
-    }
-  };
+    const fetchAlerts = async () => {
+        setIsLoading(true);
+        setError(null);
+        try {
+            const data = await alertService.getAll(filterStatus, searchTerm);
+            setAlerts(data);
+            setTotalCount(data.length);
+        } catch (error) {
+            console.error("Failed to fetch alerts", error);
+            setError('Failed to load alerts history.');
+        } finally {
+            setIsLoading(false);
+        }
+    };
 
-  /**
-   * Get paginated alerts for current page
-   */
-  const getPaginatedAlerts = () => {
-    const startIndex = (currentPage - 1) * pageSize;
-    const endIndex = startIndex + pageSize;
-    return alerts.slice(startIndex, endIndex);
-  };
+    const fetchRules = async () => {
+        setIsLoading(true);
+        setError(null);
+        try {
+            const data = await alertService.getRules();
+            setRules(data);
+        } catch (error) {
+            console.error("Failed to fetch rules", error);
+            setError('Failed to load alert rules.');
+        } finally {
+            setIsLoading(false);
+        }
+    };
 
-  /**
-   * Reset to page 1 when filter or search changes
-   */
-  const handleFilterChange = (status: 'All' | 'Active' | 'Resolved') => {
-    setFilterStatus(status);
-    setCurrentPage(1);
-  };
+    const fetchSensors = async () => {
+        try {
+            const data = await sensorService.getAll();
+            setSensors(data);
+        } catch (error) {
+            console.error("Failed to fetch sensors", error);
+        }
+    };
 
-  const handleSearchChange = (value: string) => {
-    setSearchTerm(value);
-    setCurrentPage(1);
-  };
+    // --- Handlers: History ---
 
-  /**
-   * Pagination handlers
-   */
-  const goToPage = (page: number) => {
-    if (page >= 1 && page <= totalPages) {
-      setCurrentPage(page);
-    }
-  };
+    const handleResolve = async (id: number) => {
+        try {
+            const response = await alertService.resolve(id);
+            setAlerts(alerts.map(a => a.id === id ? { ...a, status: 'Resolved' } : a));
+            showNotification(response.message || "Alert resolved successfully!", 'success');
+        } catch (error: any) {
+            showNotification('Failed to resolve: ' + (error.response?.data?.message || error.message), 'error');
+        }
+    };
 
-  const goToNextPage = () => goToPage(currentPage + 1);
-  const goToPrevPage = () => goToPage(currentPage - 1);
-  const goToFirstPage = () => goToPage(1);
-  const goToLastPage = () => goToPage(totalPages);
+    const handleDeleteAlert = (id: number) => setAlertToDelete(id);
 
-  const getSeverityStyle = (severity: string) => {
-    return severity === 'Critical'
-      ? 'bg-red-500/10 border-red-500 text-red-500'
-      : 'bg-amber-500/10 border-amber-500 text-amber-500';
-  };
+    const confirmDeleteAlert = async () => {
+        if (alertToDelete === null) return;
+        try {
+            await alertService.delete(alertToDelete);
+            setAlerts(alerts.filter(a => a.id !== alertToDelete));
+            setTotalCount(prev => prev - 1);
+            setAlertToDelete(null);
+            showNotification("Alert log deleted!", 'success');
+        } catch (error: any) {
+            setAlertToDelete(null);
+            showNotification('Delete failed: ' + (error.response?.data?.message || error.message), 'error');
+        }
+    };
 
-  return (
-    <Layout title="Alert History" breadcrumb="Monitoring Log">
-      <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 mb-8">
-        <div>
-          <h3 className="text-2xl font-bold tracking-tight">IoT Alert History Log</h3>
-          <p className="text-slate-500 text-sm mt-1">Real-time monitoring anomalies and system warnings.</p>
-        </div>
-        <div className="flex gap-2">
-          {['All', 'Active', 'Resolved'].map((status) => (
-            <button
-              key={status}
-              onClick={() => handleFilterChange(status as any)}
-              className={`px-4 py-2 rounded text-xs font-bold uppercase transition-all ${filterStatus === status
-                ? 'bg-white text-black shadow-lg shadow-white/10'
-                : 'bg-white/5 text-slate-400 hover:bg-white/10'
-                }`}
-            >
-              {status}
-            </button>
-          ))}
-        </div>
-      </div>
+    // --- Handlers: Rules ---
 
-      <div className="bg-white/5 rounded-xl border border-border-muted overflow-hidden relative">
-        <div className="p-4 border-b border-border-muted flex gap-4 items-center justify-between bg-zinc-900/30">
-          <div className="relative w-full max-w-sm">
-            <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 text-sm">search</span>
-            <input
-              value={searchTerm}
-              onChange={(e) => handleSearchChange(e.target.value)}
-              className="w-full bg-background-dark border-border-muted text-xs rounded pl-10 focus:ring-1 focus:ring-primary h-9"
-              placeholder="Search by sensor..."
-            />
-          </div>
-          <div className="flex items-center gap-3">
-            <div className="text-xs font-mono text-slate-500">
-              Showing {((currentPage - 1) * pageSize) + 1}-{Math.min(currentPage * pageSize, totalCount)} of {totalCount}
-            </div>
-            <button
-              onClick={fetchAlerts}
-              className="px-3 py-1.5 bg-zinc-800 hover:bg-zinc-700 border border-border-muted rounded text-xs font-bold text-white flex items-center gap-2"
-              disabled={isLoading}
-            >
-              <span className="material-symbols-outlined text-sm">refresh</span>
-              Refresh
-            </button>
-          </div>
-        </div>
+    const handleCreateRule = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!ruleFormData.name || ruleFormData.sensorId === 0) {
+            showNotification('Please fill in all required fields', 'error');
+            return;
+        }
 
-        {/* Loading State */}
-        {isLoading ? (
-          <div className="p-8 text-center text-slate-500">
-            <div className="flex flex-col items-center gap-3">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
-              <p>Đang tải dữ liệu alerts...</p>
-            </div>
-          </div>
-        ) : error ? (
-          /* Error State */
-          <div className="p-8 text-center text-red-500 bg-red-500/10 rounded-lg m-4 border border-red-500/20">
-            <p className="font-bold">Lỗi khi tải dữ liệu</p>
-            <p className="text-sm opacity-80 mt-1">{error}</p>
-            <button
-              onClick={fetchAlerts}
-              className="mt-4 px-4 py-2 bg-red-500 text-white text-xs font-bold rounded hover:bg-red-600 transition-colors"
-            >
-              Thử lại
-            </button>
-          </div>
-        ) : (
-          /* Data Table */
-          <div className="overflow-x-auto min-h-[400px]">
-            <table className="w-full text-left whitespace-nowrap">
-              <thead className="bg-zinc-900/50 border-b border-border-muted">
-                <tr>
-                  <th className="px-6 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Time</th>
-                  <th className="px-6 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Sensor</th>
-                  <th className="px-6 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Severity</th>
-                  <th className="px-6 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Status</th>
-                  <th className="px-6 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest text-right">Actions</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-border-muted">
-                {getPaginatedAlerts().map((alert) => (
-                  <tr key={alert.id} className="hover:bg-white/5 transition-colors">
-                    <td className="px-6 py-4 text-xs font-mono text-slate-300">
-                      {new Date(alert.time).toLocaleString('vi-VN')}
-                    </td>
-                    <td className="px-6 py-4 text-xs font-medium text-white">{alert.sensor_name}</td>
-                    <td className="px-6 py-4">
-                      <span className={`px-2 py-1 border text-[10px] font-bold uppercase rounded ${getSeverityStyle(alert.severity)}`}>
-                        {alert.severity}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4">
-                      <span className={`flex items-center gap-2 text-[10px] font-bold uppercase ${alert.status === 'Active' ? 'text-red-500 animate-pulse' : 'text-slate-500'
-                        }`}>
-                        <span className={`w-1.5 h-1.5 rounded-full ${alert.status === 'Active' ? 'bg-red-500' : 'bg-slate-500'}`}></span>
-                        {alert.status}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 text-right">
-                      <div className="flex items-center justify-end gap-2">
-                        {alert.status === 'Active' && (
-                          <button
-                            onClick={() => handleResolve(alert.id)}
-                            className="px-3 py-1 bg-green-500/10 text-green-500 border border-green-500/50 rounded hover:bg-green-500/20 text-[10px] font-bold uppercase transition-colors"
-                            title="Mark as Resolved"
-                          >
-                            Resolve
-                          </button>
-                        )}
+        setIsSubmittingRule(true);
+        try {
+            await alertService.createRule(ruleFormData);
+            showNotification('Alert rule created successfully!', 'success');
+            setIsRuleModalOpen(false);
+            fetchRules(); // Refresh list
+            // Reset form
+            setRuleFormData({
+                sensorId: 0,
+                name: '',
+                conditionType: 'MinMax',
+                minVal: 0,
+                maxVal: 100,
+                notificationMethod: 'Email',
+                priority: 'Warning'
+            });
+        } catch (error: any) {
+            console.error("Create rule failed", error);
+            showNotification('Create failed: ' + (error.response?.data?.message || error.message), 'error');
+        } finally {
+            setIsSubmittingRule(false);
+        }
+    };
+
+    // --- Pagination Logic ---
+    const getPaginatedAlerts = () => {
+        const startIndex = (currentPage - 1) * pageSize;
+        return alerts.slice(startIndex, startIndex + pageSize);
+    };
+
+    const goToPage = (page: number) => {
+        if (page >= 1 && page <= totalPages) setCurrentPage(page);
+    };
+
+    return (
+        <Layout title="Alert Management" breadcrumb="Monitoring">
+            {/* Header & Tabs */}
+            <div className="flex flex-col gap-6 mb-8">
+                <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
+                    <div>
+                        <h3 className="text-2xl font-bold tracking-tight">System Alerts</h3>
+                        <p className="text-slate-500 text-sm mt-1">Monitor anomalies and configure alert rules.</p>
+                    </div>
+
+                    <div className="flex bg-zinc-900 p-1 rounded-lg border border-border-muted">
                         <button
-                          onClick={() => handleDelete(alert.id)}
-                          className="p-1 text-slate-500 hover:text-red-500 transition-colors"
-                          title="Delete Log"
+                            onClick={() => setActiveTab('history')}
+                            className={`px-4 py-2 rounded text-xs font-bold uppercase transition-all ${activeTab === 'history'
+                                ? 'bg-primary/20 text-primary shadow-lg shadow-primary/5'
+                                : 'text-slate-400 hover:text-white'
+                                }`}
                         >
-                          <span className="material-symbols-outlined text-sm">delete</span>
+                            Alert History
                         </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-                {alerts.length === 0 && (
-                  <tr>
-                    <td colSpan={5} className="px-6 py-12 text-center text-slate-500 text-sm">
-                      <span className="material-symbols-outlined text-4xl block mb-2 opacity-20">notifications_off</span>
-                      No alerts found matching your criteria.
-                    </td>
-                  </tr>
+                        <button
+                            onClick={() => setActiveTab('rules')}
+                            className={`px-4 py-2 rounded text-xs font-bold uppercase transition-all ${activeTab === 'rules'
+                                ? 'bg-primary/20 text-primary shadow-lg shadow-primary/5'
+                                : 'text-slate-400 hover:text-white'
+                                }`}
+                        >
+                            Alert Rules
+                        </button>
+                    </div>
+                </div>
+
+                {/* Filters (Only for History) */}
+                {activeTab === 'history' && (
+                    <div className="flex flex-wrap items-center justify-between gap-4">
+                        <div className="flex gap-2">
+                            {['All', 'Active', 'Resolved'].map((status) => (
+                                <button
+                                    key={status}
+                                    onClick={() => { setFilterStatus(status as any); setCurrentPage(1); }}
+                                    className={`px-4 py-2 rounded text-xs font-bold uppercase transition-all ${filterStatus === status
+                                        ? 'bg-white text-black shadow-lg shadow-white/10'
+                                        : 'bg-white/5 text-slate-400 hover:bg-white/10'
+                                        }`}
+                                >
+                                    {status}
+                                </button>
+                            ))}
+                        </div>
+                        {/* Create Rule Button (Shortcut) */}
+                        <button
+                            onClick={() => { setActiveTab('rules'); setIsRuleModalOpen(true); }}
+                            className="md:hidden px-4 py-2 bg-primary/10 text-primary border border-primary/50 rounded text-xs font-bold uppercase hover:bg-primary/20 transition-all"
+                        >
+                            + New Rule
+                        </button>
+                    </div>
                 )}
-              </tbody>
-            </table>
-          </div>
-        )}
 
-        {/* Pagination Controls */}
-        {!isLoading && !error && totalPages > 1 && (
-          <div className="p-4 border-t border-border-muted bg-zinc-900/30 flex items-center justify-between">
-            <div className="text-xs text-slate-500">
-              Page {currentPage} of {totalPages}
+                {/* Toolbar (Only for Rules) */}
+                {activeTab === 'rules' && (
+                    <div className="flex justify-end">
+                        <button
+                            onClick={() => setIsRuleModalOpen(true)}
+                            className="px-4 py-2 bg-primary text-black rounded text-xs font-bold uppercase hover:bg-primary-light transition-all shadow-lg shadow-primary/20 flex items-center gap-2"
+                        >
+                            <span className="material-symbols-outlined text-sm">add</span>
+                            Create Alert Rule
+                        </button>
+                    </div>
+                )}
             </div>
 
-            <div className="flex items-center gap-2">
-              <button
-                onClick={goToFirstPage}
-                disabled={currentPage === 1}
-                className="px-3 py-1.5 text-xs font-bold bg-zinc-800 hover:bg-zinc-700 disabled:opacity-30 disabled:cursor-not-allowed border border-border-muted rounded transition-colors"
-              >
-                <span className="material-symbols-outlined text-sm">first_page</span>
-              </button>
+            {/* Main Content Area */}
+            <div className="bg-white/5 rounded-xl border border-border-muted overflow-hidden relative min-h-[400px]">
+                {/* Loading */}
+                {isLoading && (
+                    <div className="absolute inset-0 z-10 bg-background-dark/80 flex items-center justify-center">
+                        <div className="flex flex-col items-center gap-3">
+                            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+                            <p className="text-sm text-slate-400">Loading data...</p>
+                        </div>
+                    </div>
+                )}
 
-              <button
-                onClick={goToPrevPage}
-                disabled={currentPage === 1}
-                className="px-3 py-1.5 text-xs font-bold bg-zinc-800 hover:bg-zinc-700 disabled:opacity-30 disabled:cursor-not-allowed border border-border-muted rounded transition-colors"
-              >
-                <span className="material-symbols-outlined text-sm">chevron_left</span>
-              </button>
+                {/* TAB 1: HISTORY TABLE */}
+                {activeTab === 'history' && !isLoading && (
+                    <>
+                        <div className="p-4 border-b border-border-muted flex gap-4 items-center justify-between bg-zinc-900/30">
+                            <div className="relative w-full max-w-sm">
+                                <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 text-sm">search</span>
+                                <input
+                                    value={searchTerm}
+                                    onChange={(e) => { setSearchTerm(e.target.value); setCurrentPage(1); }}
+                                    className="w-full bg-background-dark border-border-muted text-xs rounded pl-10 focus:ring-1 focus:ring-primary h-9"
+                                    placeholder="Search by sensor name..."
+                                />
+                            </div>
+                            <div className="flex items-center gap-3 text-xs text-slate-500">
+                                Showing {totalCount > 0 ? ((currentPage - 1) * pageSize) + 1 : 0}-{Math.min(currentPage * pageSize, totalCount)} of {totalCount}
+                                <button onClick={fetchAlerts} className="ml-2 p-1 hover:text-white transition-colors" title="Refresh">
+                                    <span className="material-symbols-outlined text-sm">refresh</span>
+                                </button>
+                            </div>
+                        </div>
 
-              <div className="flex items-center gap-1">
-                {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
-                  let pageNum;
-                  if (totalPages <= 5) {
-                    pageNum = i + 1;
-                  } else if (currentPage <= 3) {
-                    pageNum = i + 1;
-                  } else if (currentPage >= totalPages - 2) {
-                    pageNum = totalPages - 4 + i;
-                  } else {
-                    pageNum = currentPage - 2 + i;
-                  }
+                        <div className="overflow-x-auto">
+                            <table className="w-full text-left whitespace-nowrap">
+                                <thead className="bg-zinc-900/50 border-b border-border-muted">
+                                    <tr>
+                                        <th className="px-6 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Time</th>
+                                        <th className="px-6 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Sensor</th>
+                                        <th className="px-6 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Severity</th>
+                                        <th className="px-6 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Status</th>
+                                        <th className="px-6 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest text-right">Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody className="divide-y divide-border-muted">
+                                    {getPaginatedAlerts().map((alert) => (
+                                        <tr key={alert.id} className="hover:bg-white/5 transition-colors">
+                                            <td className="px-6 py-4 text-xs font-mono text-slate-300">
+                                                {new Date(alert.time).toLocaleString('vi-VN')}
+                                            </td>
+                                            <td className="px-6 py-4 text-xs font-medium text-white">{alert.sensor_name}</td>
+                                            <td className="px-6 py-4">
+                                                <span className={`px-2 py-1 border text-[10px] font-bold uppercase rounded ${getSeverityStyle(alert.severity)}`}>
+                                                    {alert.severity}
+                                                </span>
+                                            </td>
+                                            <td className="px-6 py-4">
+                                                <span className={`flex items-center gap-2 text-[10px] font-bold uppercase ${alert.status === 'Active' ? 'text-red-500 animate-pulse' : 'text-slate-500'}`}>
+                                                    <span className={`w-1.5 h-1.5 rounded-full ${alert.status === 'Active' ? 'bg-red-500' : 'bg-slate-500'}`}></span>
+                                                    {alert.status}
+                                                </span>
+                                            </td>
+                                            <td className="px-6 py-4 text-right">
+                                                <div className="flex items-center justify-end gap-2">
+                                                    {alert.status === 'Active' && (
+                                                        <button onClick={() => handleResolve(alert.id)} className="px-3 py-1 bg-green-500/10 text-green-500 border border-green-500/50 rounded hover:bg-green-500/20 text-[10px] font-bold uppercase transition-colors">
+                                                            Resolve
+                                                        </button>
+                                                    )}
+                                                    <button onClick={() => handleDeleteAlert(alert.id)} className="p-1 text-slate-500 hover:text-red-500 transition-colors">
+                                                        <span className="material-symbols-outlined text-sm">delete</span>
+                                                    </button>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    ))}
+                                    {alerts.length === 0 && (
+                                        <tr><td colSpan={5} className="p-8 text-center text-slate-500 text-sm">No data available.</td></tr>
+                                    )}
+                                </tbody>
+                            </table>
+                        </div>
 
-                  return (
-                    <button
-                      key={pageNum}
-                      onClick={() => goToPage(pageNum)}
-                      className={`px-3 py-1.5 text-xs font-bold border border-border-muted rounded transition-colors ${currentPage === pageNum
-                          ? 'bg-white text-black'
-                          : 'bg-zinc-800 hover:bg-zinc-700 text-white'
-                        }`}
-                    >
-                      {pageNum}
-                    </button>
-                  );
-                })}
-              </div>
+                        {/* Pagination */}
+                        {totalPages > 1 && (
+                            <div className="p-4 border-t border-border-muted bg-zinc-900/30 flex justify-center gap-2">
+                                <button disabled={currentPage === 1} onClick={() => goToPage(currentPage - 1)} className="px-3 py-1 bg-zinc-800 rounded disabled:opacity-50 text-xs text-white"><span className="material-symbols-outlined text-sm">chevron_left</span></button>
+                                <span className="px-3 py-1 text-xs text-slate-400 self-center">Page {currentPage} of {totalPages}</span>
+                                <button disabled={currentPage === totalPages} onClick={() => goToPage(currentPage + 1)} className="px-3 py-1 bg-zinc-800 rounded disabled:opacity-50 text-xs text-white"><span className="material-symbols-outlined text-sm">chevron_right</span></button>
+                            </div>
+                        )}
+                    </>
+                )}
 
-              <button
-                onClick={goToNextPage}
-                disabled={currentPage === totalPages}
-                className="px-3 py-1.5 text-xs font-bold bg-zinc-800 hover:bg-zinc-700 disabled:opacity-30 disabled:cursor-not-allowed border border-border-muted rounded transition-colors"
-              >
-                <span className="material-symbols-outlined text-sm">chevron_right</span>
-              </button>
-
-              <button
-                onClick={goToLastPage}
-                disabled={currentPage === totalPages}
-                className="px-3 py-1.5 text-xs font-bold bg-zinc-800 hover:bg-zinc-700 disabled:opacity-30 disabled:cursor-not-allowed border border-border-muted rounded transition-colors"
-              >
-                <span className="material-symbols-outlined text-sm">last_page</span>
-              </button>
+                {/* TAB 2: RULES TABLE */}
+                {activeTab === 'rules' && !isLoading && (
+                    <div className="overflow-x-auto">
+                        <table className="w-full text-left whitespace-nowrap">
+                            <thead className="bg-zinc-900/50 border-b border-border-muted">
+                                <tr>
+                                    <th className="px-6 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Rule Name</th>
+                                    <th className="px-6 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Sensor</th>
+                                    <th className="px-6 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Condition</th>
+                                    <th className="px-6 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Threshold</th>
+                                    <th className="px-6 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Priority</th>
+                                    <th className="px-6 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Notify</th>
+                                </tr>
+                            </thead>
+                            <tbody className="divide-y divide-border-muted">
+                                {rules.map((rule) => (
+                                    <tr key={rule.ruleId} className="hover:bg-white/5 transition-colors">
+                                        <td className="px-6 py-4 text-xs font-bold text-white">{rule.name}</td>
+                                        <td className="px-6 py-4 text-xs text-slate-300">{rule.sensorName}</td>
+                                        <td className="px-6 py-4 text-xs text-slate-400 italic">{rule.conditionType}</td>
+                                        <td className="px-6 py-4 text-xs font-mono text-primary">
+                                            {rule.minVal} - {rule.maxVal}
+                                        </td>
+                                        <td className="px-6 py-4">
+                                            <span className={`px-2 py-1 border text-[10px] font-bold uppercase rounded ${getSeverityStyle(rule.priority)}`}>
+                                                {rule.priority}
+                                            </span>
+                                        </td>
+                                        <td className="px-6 py-4 text-xs text-slate-400 flex items-center gap-1">
+                                            <span className="material-symbols-outlined text-sm">mail</span>
+                                            {rule.notificationMethod}
+                                        </td>
+                                    </tr>
+                                ))}
+                                {rules.length === 0 && (
+                                    <tr><td colSpan={6} className="p-8 text-center text-slate-500 text-sm">No alert rules configured yet.</td></tr>
+                                )}
+                            </tbody>
+                        </table>
+                    </div>
+                )}
             </div>
-          </div>
-        )}
-      </div>
 
-      {/* Delete Confirmation Modal */}
-      <Modal
-        isOpen={alertToDelete !== null}
-        onClose={() => setAlertToDelete(null)}
-        title="Confirm Delete"
-      >
-        <div className="p-6">
-          <div className="flex items-center gap-4 mb-4 text-red-500 bg-red-500/10 p-4 rounded-lg border border-red-500/20">
-            <span className="material-symbols-outlined text-3xl">warning</span>
-            <div>
-              <h4 className="font-bold uppercase text-sm">Warning: Irreversible Action</h4>
-              <p className="text-xs opacity-80 mt-1">This action cannot be undone.</p>
-            </div>
-          </div>
+            {/* --- MODALS --- */}
 
-          <p className="text-slate-300 text-sm mb-6">
-            Are you sure you want to permanently delete this alert log?
-            This will remove the record from the database.
-          </p>
+            {/* 1. Delete Confirm Modal */}
+            <Modal isOpen={alertToDelete !== null} onClose={() => setAlertToDelete(null)} title="Confirm Delete">
+                <div className="p-6">
+                    <div className="flex items-center gap-4 mb-4 text-red-500 bg-red-500/10 p-4 rounded-lg border border-red-500/20">
+                        <span className="material-symbols-outlined text-3xl">warning</span>
+                        <div>
+                            <h4 className="font-bold uppercase text-sm">Irreversible Action</h4>
+                            <p className="text-xs opacity-80 mt-1">This action cannot be undone.</p>
+                        </div>
+                    </div>
+                    <p className="text-slate-300 text-sm mb-6">Are you sure you want to permanently delete this alert log?</p>
+                    <div className="flex gap-3">
+                        <button onClick={() => setAlertToDelete(null)} className="flex-1 px-4 py-2.5 border border-border-muted text-white rounded text-xs font-bold uppercase hover:bg-white/5">Cancel</button>
+                        <button onClick={confirmDeleteAlert} className="flex-1 px-4 py-2.5 bg-red-500 text-white rounded text-xs font-bold uppercase hover:bg-red-600 shadow-lg shadow-red-500/20">Delete Log</button>
+                    </div>
+                </div>
+            </Modal>
 
-          <div className="flex gap-3">
-            <button
-              onClick={() => setAlertToDelete(null)}
-              className="flex-1 px-4 py-2.5 border border-border-muted text-white rounded text-xs font-bold uppercase hover:bg-white/5 transition-colors"
-            >
-              Cancel
-            </button>
-            <button
-              onClick={confirmDelete}
-              className="flex-1 px-4 py-2.5 bg-red-500 text-white rounded text-xs font-bold uppercase hover:bg-red-600 transition-colors shadow-lg shadow-red-500/20"
-            >
-              Delete Log
-            </button>
-          </div>
-        </div>
-      </Modal>
+            {/* 2. Create Rule Modal */}
+            <Modal isOpen={isRuleModalOpen} onClose={() => setIsRuleModalOpen(false)} title="Create Alert Rule">
+                <form onSubmit={handleCreateRule} className="p-6 space-y-5">
+                    <div>
+                        <label className="block text-xs font-bold text-slate-400 uppercase mb-2">Rule Name</label>
+                        <input
+                            required
+                            className="w-full bg-zinc-800 border border-zinc-700 rounded px-3 py-2.5 text-sm text-white placeholder-slate-500 focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary transition-all"
+                            placeholder="e.g. High Temp Warning"
+                            value={ruleFormData.name}
+                            onChange={e => setRuleFormData({ ...ruleFormData, name: e.target.value })}
+                        />
+                    </div>
 
-      {/* Toast Notification */}
-      {notification && (
-        <div className={`fixed top-4 right-4 z-50 flex items-center gap-3 px-4 py-3 rounded shadow-2xl border transition-all duration-300 animate-slide-in ${notification.type === 'success'
-            ? 'bg-zinc-900 border-green-500 text-green-500'
-            : 'bg-zinc-900 border-red-500 text-red-500'
-          }`}>
-          <span className="material-symbols-outlined">
-            {notification.type === 'success' ? 'check_circle' : 'error'}
-          </span>
-          <div>
-            <h4 className="font-bold uppercase text-[10px] tracking-wider">{notification.type === 'success' ? 'Success' : 'Error'}</h4>
-            <p className="text-xs text-white/90 mt-0.5">{notification.message}</p>
-          </div>
-          <button
-            onClick={() => setNotification(null)}
-            className="ml-2 hover:bg-white/10 rounded p-1 transition-colors"
-          >
-            <span className="material-symbols-outlined text-sm">close</span>
-          </button>
-        </div>
-      )}
-    </Layout>
-  );
+                    <div>
+                        <label className="block text-xs font-bold text-slate-400 uppercase mb-2">Target Sensor</label>
+                        <div className="relative">
+                            <select
+                                required
+                                className="w-full bg-zinc-800 border border-zinc-700 rounded px-3 py-2.5 text-sm text-white appearance-none focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary transition-all"
+                                value={ruleFormData.sensorId}
+                                onChange={e => setRuleFormData({ ...ruleFormData, sensorId: Number(e.target.value) })}
+                            >
+                                <option value={0} className="bg-zinc-800 text-slate-400">-- Select Sensor --</option>
+                                {sensors.length > 0 ? (
+                                    sensors.map(s => (
+                                        <option key={s.sensorId} value={s.sensorId} className="bg-zinc-800 text-white">
+                                            {s.sensorName} ({s.hubName})
+                                        </option>
+                                    ))
+                                ) : (
+                                    <option disabled className="bg-zinc-800 text-slate-500">Loading sensors...</option>
+                                )}
+                            </select>
+                            <span className="material-symbols-outlined absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none text-lg">expand_more</span>
+                        </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-5">
+                        <div>
+                            <label className="block text-xs font-bold text-slate-400 uppercase mb-2">Min Value</label>
+                            <input type="number" step="0.1"
+                                className="w-full bg-zinc-800 border border-zinc-700 rounded px-3 py-2.5 text-sm text-white focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+                                value={ruleFormData.minVal}
+                                onChange={e => setRuleFormData({ ...ruleFormData, minVal: Number(e.target.value) })}
+                            />
+                        </div>
+                        <div>
+                            <label className="block text-xs font-bold text-slate-400 uppercase mb-2">Max Value</label>
+                            <input type="number" step="0.1"
+                                className="w-full bg-zinc-800 border border-zinc-700 rounded px-3 py-2.5 text-sm text-white focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+                                value={ruleFormData.maxVal}
+                                onChange={e => setRuleFormData({ ...ruleFormData, maxVal: Number(e.target.value) })}
+                            />
+                        </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-5">
+                        <div>
+                            <label className="block text-xs font-bold text-slate-400 uppercase mb-2">Priority</label>
+                            <div className="relative">
+                                <select
+                                    className="w-full bg-zinc-800 border border-zinc-700 rounded px-3 py-2.5 text-sm text-white appearance-none focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+                                    value={ruleFormData.priority}
+                                    onChange={e => setRuleFormData({ ...ruleFormData, priority: e.target.value })}
+                                >
+                                    <option value="Warning" className="bg-zinc-800">Warning</option>
+                                    <option value="Critical" className="bg-zinc-800">Critical</option>
+                                </select>
+                                <span className="material-symbols-outlined absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none text-lg">expand_more</span>
+                            </div>
+                        </div>
+                        <div>
+                            <label className="block text-xs font-bold text-slate-400 uppercase mb-2">Notify Via</label>
+                            <div className="relative">
+                                <select
+                                    className="w-full bg-zinc-800 border border-zinc-700 rounded px-3 py-2.5 text-sm text-white appearance-none focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+                                    value={ruleFormData.notificationMethod}
+                                    onChange={e => setRuleFormData({ ...ruleFormData, notificationMethod: e.target.value })}
+                                >
+                                    <option value="Email" className="bg-zinc-800">Email</option>
+                                    <option value="SMS" className="bg-zinc-800">SMS</option>
+                                    <option value="All" className="bg-zinc-800">All Channels</option>
+                                </select>
+                                <span className="material-symbols-outlined absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none text-lg">expand_more</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div className="pt-6 flex gap-3 border-t border-border-muted mt-2">
+                        <button type="button" onClick={() => setIsRuleModalOpen(false)} className="flex-1 px-4 py-2.5 border border-zinc-700 text-slate-300 rounded text-xs font-bold uppercase hover:bg-white/5 transition-colors">Cancel</button>
+                        <button disabled={isSubmittingRule} type="submit" className="flex-1 px-4 py-2.5 bg-primary text-black rounded text-xs font-bold uppercase hover:bg-primary-light disabled:opacity-50 shadow-lg shadow-primary/20 transition-all">
+                            {isSubmittingRule ? 'Saving...' : 'Create Rule'}
+                        </button>
+                    </div>
+                </form>
+            </Modal>
+
+            {/* Toast Notification */}
+            {notification && (
+                <div className={`fixed top-20 right-4 z-[200] flex items-center gap-3 px-4 py-3 rounded shadow-2xl border transition-all duration-300 animate-in fade-in slide-in-from-right-5 ${notification.type === 'success'
+                    ? 'bg-zinc-900 border-green-500 text-green-500'
+                    : 'bg-zinc-900 border-red-500 text-red-500'
+                    }`}>
+                    <span className="material-symbols-outlined text-lg">
+                        {notification.type === 'success' ? 'check_circle' : 'error'}
+                    </span>
+                    <div>
+                        <h4 className="font-bold uppercase text-[10px] tracking-wider">{notification.type === 'success' ? 'Success' : 'Error'}</h4>
+                        <p className="text-xs text-white/90 mt-0.5">{notification.message}</p>
+                    </div>
+                    <button onClick={() => setNotification(null)} className="ml-2 hover:bg-white/10 rounded p-1"><span className="material-symbols-outlined text-sm">close</span></button>
+                </div>
+            )}
+        </Layout>
+    );
 };
 
 export default AlertsPage;

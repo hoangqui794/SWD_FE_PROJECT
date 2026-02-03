@@ -9,6 +9,29 @@ export interface Alert {
     status: string;            // "Active" hoặc "Resolved"
 }
 
+export interface AlertRule {
+    ruleId: number;
+    sensorId: number;
+    sensorName: string;
+    name: string;
+    conditionType: string; // "MinMax", etc.
+    minVal: number;
+    maxVal: number;
+    notificationMethod: string; // "Email", etc.
+    priority: string;      // "Critical", etc.
+    isActive: boolean;
+}
+
+export interface CreateAlertRuleRequest {
+    sensorId: number;
+    name: string;
+    conditionType: string;
+    minVal: number;
+    maxVal: number;
+    notificationMethod: string;
+    priority: string;
+}
+
 // Interface cho API response
 interface ApiResponse<T> {
     message: string;
@@ -19,18 +42,33 @@ interface ApiResponse<T> {
 // Service chứa các hàm gọi API
 export const alertService = {
     /**
-     * Lấy danh sách alerts
-     * @param status - Filter theo status: "All", "Active", "Resolved"
-     * @param search - Tìm kiếm theo tên sensor
-     * @returns Promise chứa mảng Alert[]
+     * Lấy tất cả alerts (có filter và search)
+     * @param status - Trạng thái alert ("Active", "Resolved", hoặc null cho tất cả)
+     * @param search - Từ khóa tìm kiếm theo tên sensor
      */
     getAll: async (status?: string, search?: string): Promise<Alert[]> => {
         const params: any = {};
-        if (status) params.status = status;
+        if (status && status !== 'All') params.status = status;
         if (search) params.search = search;
 
         const response = await apiClient.get<ApiResponse<Alert[]>>('/api/alerts', { params });
         return response.data.data;
+    },
+
+    /**
+     * Lấy danh sách các quy tắc cảnh báo (Alert Rules)
+     */
+    getRules: async (): Promise<AlertRule[]> => {
+        const response = await apiClient.get<ApiResponse<AlertRule[]>>('/api/alerts/rules');
+        return response.data.data;
+    },
+
+    /**
+     * Tạo quy tắc cảnh báo mới
+     */
+    createRule: async (data: CreateAlertRuleRequest): Promise<any> => {
+        const response = await apiClient.post('/api/alerts/rules', data);
+        return response.data;
     },
 
     /**
