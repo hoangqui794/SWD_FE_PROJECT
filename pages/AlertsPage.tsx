@@ -1,33 +1,119 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Layout from '../components/Layout';
+import { alertService, Alert } from '../services/alertService';
 
 const AlertsPage: React.FC = () => {
-  const [alerts, setAlerts] = useState([
-    { id: 1, time: "2024-05-14 14:22", sensor: "Freezer Unit A2", severity: "Critical", status: "Active" },
-    { id: 2, time: "2024-05-14 12:05", sensor: "Dry Storage 01", severity: "Warning", status: "Resolved" },
-    { id: 3, time: "2024-05-13 22:15", sensor: "Medicine Cab", severity: "Critical", status: "Resolved" },
-    { id: 4, time: "2024-05-13 18:44", sensor: "Backroom B", severity: "Warning", status: "Resolved" },
-    { id: 5, time: "2024-05-12 09:30", sensor: "Main Server Room", severity: "Critical", status: "Active" },
-  ]);
-
+  // State management
+  const [alerts, setAlerts] = useState<Alert[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [filterStatus, setFilterStatus] = useState<'All' | 'Active' | 'Resolved'>('All');
   const [searchTerm, setSearchTerm] = useState("");
 
-  const filteredAlerts = alerts.filter(alert => {
-    const matchesSearch = alert.sensor.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesFilter = filterStatus === 'All' || alert.status === filterStatus;
-    return matchesSearch && matchesFilter;
-  });
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize] = useState(20); // 20 alerts per page
+  const [totalCount, setTotalCount] = useState(0);
 
-  const handleResolve = (id: number) => {
-    setAlerts(alerts.map(a => a.id === id ? { ...a, status: 'Resolved' } : a));
-  };
+  // Calculate total pages
+  const totalPages = Math.ceil(totalCount / pageSize);
 
-  const handleDelete = (id: number) => {
-    if (confirm('Delete this alert log?')) {
-      setAlerts(alerts.filter(a => a.id !== id));
+  // Fetch alerts khi component mount hoặc khi filter/search/page thay đổi
+  useEffect(() => {
+    fetchAlerts();
+  }, [filterStatus, searchTerm, currentPage]);
+
+  /**
+   * Hàm gọi API để lấy danh sách alerts
+   */
+  const fetchAlerts = async () => {
+    setIsLoading(true);
+    setError(null);
+    try {
+      const data = await alertService.getAll(filterStatus, searchTerm);
+      setAlerts(data);
+      // Note: API hiện tại trả về tất cả data, chưa có pagination từ backend
+      // Chúng ta sẽ implement client-side pagination
+      setTotalCount(data.length);
+    } catch (error) {
+      console.error("Failed to fetch alerts", error);
+      setError('Không thể tải dữ liệu alerts. Vui lòng kiểm tra kết nối.');
+    } finally {
+      setIsLoading(false);
     }
   };
+
+  /**
+   * Hàm xử lý resolve alert
+   */
+  /**
+   * Hàm xử lý resolve alert
+   */
+  const handleResolve = async (id: number) => {
+    try {
+      const response = await alertService.resolve(id);
+      // Cập nhật local state
+      setAlerts(alerts.map(a => a.id === id ? { ...a, status: 'Resolved' } : a));
+      // Hiển thị thông báo thành công từ API (optional, hiện tại dùng optimistic update nên có thể không cần alert để tránh spam, nhưng log ra console)
+      console.log("Resolved:", response.message);
+    } catch (error: any) {
+      console.error("Failed to resolve alert", error);
+      alert('Không thể resolve alert: ' + (error.response?.data?.message || error.message));
+    }
+  };
+
+  /**
+   * Hàm xử lý xóa alert
+   */
+  const handleDelete = async (id: number) => {
+    if (!confirm('Bạn có chắc muốn xóa alert này?')) return;
+
+    try {
+      await alertService.delete(id);
+      // Xóa khỏi local state
+      setAlerts(alerts.filter(a => a.id !== id));
+      setTotalCount(prev => prev - 1);
+    } catch (error: any) {
+      console.error("Failed to delete alert", error);
+      alert('Không thể xóa alert: ' + (error.response?.data?.message || error.message));
+    }
+  };
+
+  /**
+   * Get paginated alerts for current page
+   */
+  const getPaginatedAlerts = () => {
+    const startIndex = (currentPage - 1) * pageSize;
+    const endIndex = startIndex + pageSize;
+    return alerts.slice(startIndex, endIndex);
+  };
+
+  /**
+   * Reset to page 1 when filter or search changes
+   */
+  const handleFilterChange = (status: 'All' | 'Active' | 'Resolved') => {
+    setFilterStatus(status);
+    setCurrentPage(1);
+  };
+
+  const handleSearchChange = (value: string) => {
+    setSearchTerm(value);
+    setCurrentPage(1);
+  };
+
+  /**
+   * Pagination handlers
+   */
+  const goToPage = (page: number) => {
+    if (page >= 1 && page <= totalPages) {
+      setCurrentPage(page);
+    }
+  };
+
+  const goToNextPage = () => goToPage(currentPage + 1);
+  const goToPrevPage = () => goToPage(currentPage - 1);
+  const goToFirstPage = () => goToPage(1);
+  const goToLastPage = () => goToPage(totalPages);
 
   const getSeverityStyle = (severity: string) => {
     return severity === 'Critical'
@@ -46,7 +132,7 @@ const AlertsPage: React.FC = () => {
           {['All', 'Active', 'Resolved'].map((status) => (
             <button
               key={status}
-              onClick={() => setFilterStatus(status as any)}
+              onClick={() => handleFilterChange(status as any)}
               className={`px-4 py-2 rounded text-xs font-bold uppercase transition-all ${filterStatus === status
                 ? 'bg-white text-black shadow-lg shadow-white/10'
                 : 'bg-white/5 text-slate-400 hover:bg-white/10'
@@ -64,77 +150,193 @@ const AlertsPage: React.FC = () => {
             <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 text-sm">search</span>
             <input
               value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
+              onChange={(e) => handleSearchChange(e.target.value)}
               className="w-full bg-background-dark border-border-muted text-xs rounded pl-10 focus:ring-1 focus:ring-primary h-9"
               placeholder="Search by sensor..."
             />
           </div>
-          <div className="text-xs font-mono text-slate-500">
-            Showing {filteredAlerts.length} record(s)
+          <div className="flex items-center gap-3">
+            <div className="text-xs font-mono text-slate-500">
+              Showing {((currentPage - 1) * pageSize) + 1}-{Math.min(currentPage * pageSize, totalCount)} of {totalCount}
+            </div>
+            <button
+              onClick={fetchAlerts}
+              className="px-3 py-1.5 bg-zinc-800 hover:bg-zinc-700 border border-border-muted rounded text-xs font-bold text-white flex items-center gap-2"
+              disabled={isLoading}
+            >
+              <span className="material-symbols-outlined text-sm">refresh</span>
+              Refresh
+            </button>
           </div>
         </div>
 
-        <div className="overflow-x-auto">
-          <table className="w-full text-left whitespace-nowrap">
-            <thead className="bg-zinc-900/50 border-b border-border-muted">
-              <tr>
-                <th className="px-6 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Time</th>
-                <th className="px-6 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Sensor</th>
-                <th className="px-6 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Severity</th>
-                <th className="px-6 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Status</th>
-                <th className="px-6 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest text-right">Actions</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-border-muted">
-              {filteredAlerts.map((alert) => (
-                <tr key={alert.id} className="hover:bg-white/5 transition-colors">
-                  <td className="px-6 py-4 text-xs font-mono text-slate-300">{alert.time}</td>
-                  <td className="px-6 py-4 text-xs font-medium text-white">{alert.sensor}</td>
-                  <td className="px-6 py-4">
-                    <span className={`px-2 py-1 border text-[10px] font-bold uppercase rounded ${getSeverityStyle(alert.severity)}`}>
-                      {alert.severity}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4">
-                    <span className={`flex items-center gap-2 text-[10px] font-bold uppercase ${alert.status === 'Active' ? 'text-red-500 animate-pulse' : 'text-slate-500'
-                      }`}>
-                      <span className={`w-1.5 h-1.5 rounded-full ${alert.status === 'Active' ? 'bg-red-500' : 'bg-slate-500'}`}></span>
-                      {alert.status}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4 text-right">
-                    <div className="flex items-center justify-end gap-2">
-                      {alert.status === 'Active' && (
-                        <button
-                          onClick={() => handleResolve(alert.id)}
-                          className="px-3 py-1 bg-green-500/10 text-green-500 border border-green-500/50 rounded hover:bg-green-500/20 text-[10px] font-bold uppercase transition-colors"
-                          title="Mark as Resolved"
-                        >
-                          Resolve
-                        </button>
-                      )}
-                      <button
-                        onClick={() => handleDelete(alert.id)}
-                        className="p-1 text-slate-500 hover:text-red-500 transition-colors"
-                        title="Delete Log"
-                      >
-                        <span className="material-symbols-outlined text-sm">delete</span>
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
-              {filteredAlerts.length === 0 && (
+        {/* Loading State */}
+        {isLoading ? (
+          <div className="p-8 text-center text-slate-500">
+            <div className="flex flex-col items-center gap-3">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+              <p>Đang tải dữ liệu alerts...</p>
+            </div>
+          </div>
+        ) : error ? (
+          /* Error State */
+          <div className="p-8 text-center text-red-500 bg-red-500/10 rounded-lg m-4 border border-red-500/20">
+            <p className="font-bold">Lỗi khi tải dữ liệu</p>
+            <p className="text-sm opacity-80 mt-1">{error}</p>
+            <button
+              onClick={fetchAlerts}
+              className="mt-4 px-4 py-2 bg-red-500 text-white text-xs font-bold rounded hover:bg-red-600 transition-colors"
+            >
+              Thử lại
+            </button>
+          </div>
+        ) : (
+          /* Data Table */
+          <div className="overflow-x-auto">
+            <table className="w-full text-left whitespace-nowrap">
+              <thead className="bg-zinc-900/50 border-b border-border-muted">
                 <tr>
-                  <td colSpan={5} className="px-6 py-12 text-center text-slate-500 text-sm">
-                    <span className="material-symbols-outlined text-4xl block mb-2 opacity-20">notifications_off</span>
-                    No alerts found matching your criteria.
-                  </td>
+                  <th className="px-6 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Time</th>
+                  <th className="px-6 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Sensor</th>
+                  <th className="px-6 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Severity</th>
+                  <th className="px-6 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Status</th>
+                  <th className="px-6 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest text-right">Actions</th>
                 </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
+              </thead>
+              <tbody className="divide-y divide-border-muted">
+                {getPaginatedAlerts().map((alert) => (
+                  <tr key={alert.id} className="hover:bg-white/5 transition-colors">
+                    <td className="px-6 py-4 text-xs font-mono text-slate-300">
+                      {new Date(alert.time).toLocaleString('vi-VN')}
+                    </td>
+                    <td className="px-6 py-4 text-xs font-medium text-white">{alert.sensor_name}</td>
+                    <td className="px-6 py-4">
+                      <span className={`px-2 py-1 border text-[10px] font-bold uppercase rounded ${getSeverityStyle(alert.severity)}`}>
+                        {alert.severity}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4">
+                      <span className={`flex items-center gap-2 text-[10px] font-bold uppercase ${alert.status === 'Active' ? 'text-red-500 animate-pulse' : 'text-slate-500'
+                        }`}>
+                        <span className={`w-1.5 h-1.5 rounded-full ${alert.status === 'Active' ? 'bg-red-500' : 'bg-slate-500'}`}></span>
+                        {alert.status}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4 text-right">
+                      <div className="flex items-center justify-end gap-2">
+                        {alert.status === 'Active' && (
+                          <button
+                            onClick={() => handleResolve(alert.id)}
+                            className="px-3 py-1 bg-green-500/10 text-green-500 border border-green-500/50 rounded hover:bg-green-500/20 text-[10px] font-bold uppercase transition-colors"
+                            title="Mark as Resolved"
+                          >
+                            Resolve
+                          </button>
+                        )}
+                        <button
+                          onClick={() => handleDelete(alert.id)}
+                          className="p-1 text-slate-500 hover:text-red-500 transition-colors"
+                          title="Delete Log"
+                        >
+                          <span className="material-symbols-outlined text-sm">delete</span>
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+                {alerts.length === 0 && (
+                  <tr>
+                    <td colSpan={5} className="px-6 py-12 text-center text-slate-500 text-sm">
+                      <span className="material-symbols-outlined text-4xl block mb-2 opacity-20">notifications_off</span>
+                      No alerts found matching your criteria.
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        )}
+
+        {/* Pagination Controls */}
+        {!isLoading && !error && totalPages > 1 && (
+          <div className="p-4 border-t border-border-muted bg-zinc-900/30 flex items-center justify-between">
+            <div className="text-xs text-slate-500">
+              Page {currentPage} of {totalPages}
+            </div>
+
+            <div className="flex items-center gap-2">
+              {/* First Page */}
+              <button
+                onClick={goToFirstPage}
+                disabled={currentPage === 1}
+                className="px-3 py-1.5 text-xs font-bold bg-zinc-800 hover:bg-zinc-700 disabled:opacity-30 disabled:cursor-not-allowed border border-border-muted rounded transition-colors"
+                title="First Page"
+              >
+                <span className="material-symbols-outlined text-sm">first_page</span>
+              </button>
+
+              {/* Previous Page */}
+              <button
+                onClick={goToPrevPage}
+                disabled={currentPage === 1}
+                className="px-3 py-1.5 text-xs font-bold bg-zinc-800 hover:bg-zinc-700 disabled:opacity-30 disabled:cursor-not-allowed border border-border-muted rounded transition-colors"
+                title="Previous Page"
+              >
+                <span className="material-symbols-outlined text-sm">chevron_left</span>
+              </button>
+
+              {/* Page Numbers */}
+              <div className="flex items-center gap-1">
+                {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                  // Show pages around current page
+                  let pageNum;
+                  if (totalPages <= 5) {
+                    pageNum = i + 1;
+                  } else if (currentPage <= 3) {
+                    pageNum = i + 1;
+                  } else if (currentPage >= totalPages - 2) {
+                    pageNum = totalPages - 4 + i;
+                  } else {
+                    pageNum = currentPage - 2 + i;
+                  }
+
+                  return (
+                    <button
+                      key={pageNum}
+                      onClick={() => goToPage(pageNum)}
+                      className={`px-3 py-1.5 text-xs font-bold border border-border-muted rounded transition-colors ${currentPage === pageNum
+                        ? 'bg-white text-black'
+                        : 'bg-zinc-800 hover:bg-zinc-700 text-white'
+                        }`}
+                    >
+                      {pageNum}
+                    </button>
+                  );
+                })}
+              </div>
+
+              {/* Next Page */}
+              <button
+                onClick={goToNextPage}
+                disabled={currentPage === totalPages}
+                className="px-3 py-1.5 text-xs font-bold bg-zinc-800 hover:bg-zinc-700 disabled:opacity-30 disabled:cursor-not-allowed border border-border-muted rounded transition-colors"
+                title="Next Page"
+              >
+                <span className="material-symbols-outlined text-sm">chevron_right</span>
+              </button>
+
+              {/* Last Page */}
+              <button
+                onClick={goToLastPage}
+                disabled={currentPage === totalPages}
+                className="px-3 py-1.5 text-xs font-bold bg-zinc-800 hover:bg-zinc-700 disabled:opacity-30 disabled:cursor-not-allowed border border-border-muted rounded transition-colors"
+                title="Last Page"
+              >
+                <span className="material-symbols-outlined text-sm">last_page</span>
+              </button>
+            </div>
+          </div>
+        )}
       </div>
     </Layout>
   );
