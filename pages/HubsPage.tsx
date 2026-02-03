@@ -1,11 +1,16 @@
 import React, { useState, useEffect } from 'react';
 import Layout from '../components/Layout';
 import Modal from '../components/Modal';
+import { useAuth } from '../context/AuthContext';
+
 import { hubService, Hub } from '../services/hubService';
 import { siteService, Site } from '../services/siteService';
 import { signalRService } from '../services/signalrService';
 
 const HubsPage: React.FC = () => {
+  const { hasRole } = useAuth();
+  const canManage = hasRole(['ADMIN', 'MANAGER']);
+
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [hubs, setHubs] = useState<Hub[]>([]);
   const [sites, setSites] = useState<Site[]>([]);
@@ -141,9 +146,11 @@ const HubsPage: React.FC = () => {
           <h3 className="text-2xl font-bold tracking-tight">Hubs Management</h3>
           <p className="text-slate-500 text-sm mt-1">Configure and monitor gateway devices across all store locations.</p>
         </div>
-        <button onClick={handleAddNew} className="px-4 py-2 bg-white text-black hover:bg-slate-200 transition-colors rounded text-xs font-bold flex items-center gap-2">
-          <span className="material-symbols-outlined text-sm">add</span> Add New Hub
-        </button>
+        {canManage && (
+          <button onClick={handleAddNew} className="px-4 py-2 bg-white text-black hover:bg-slate-200 transition-colors rounded text-xs font-bold flex items-center gap-2">
+            <span className="material-symbols-outlined text-sm">add</span> Add New Hub
+          </button>
+        )}
       </div>
       <div className="bg-white/5 rounded-xl border border-border-muted overflow-hidden">
         <div className="overflow-x-auto">
@@ -155,7 +162,7 @@ const HubsPage: React.FC = () => {
                 <th className="px-6 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Site Name</th>
                 <th className="px-6 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest">MAC Address</th>
                 <th className="px-6 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Status</th>
-                <th className="px-6 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest text-right">Actions</th>
+                {canManage && <th className="px-6 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest text-right">Actions</th>}
               </tr>
             </thead>
             <tbody className="divide-y divide-border-muted">
@@ -171,22 +178,24 @@ const HubsPage: React.FC = () => {
                       {hub.isOnline ? 'ONLINE' : 'OFFLINE'}
                     </span>
                   </td>
-                  <td className="px-6 py-4 text-right flex justify-end gap-2">
-                    <button
-                      onClick={() => handleEdit(hub)}
-                      className="text-slate-500 hover:text-white transition-colors"
-                      title="Edit"
-                    >
-                      <span className="material-symbols-outlined">edit</span>
-                    </button>
-                    <button
-                      onClick={() => initiateDelete(hub.hubId)}
-                      className="text-slate-500 hover:text-red-500 transition-colors"
-                      title="Delete"
-                    >
-                      <span className="material-symbols-outlined">delete</span>
-                    </button>
-                  </td>
+                  {canManage && (
+                    <td className="px-6 py-4 text-right flex justify-end gap-2">
+                      <button
+                        onClick={() => handleEdit(hub)}
+                        className="text-slate-500 hover:text-white transition-colors"
+                        title="Edit"
+                      >
+                        <span className="material-symbols-outlined">edit</span>
+                      </button>
+                      <button
+                        onClick={() => initiateDelete(hub.hubId)}
+                        className="text-slate-500 hover:text-red-500 transition-colors"
+                        title="Delete"
+                      >
+                        <span className="material-symbols-outlined">delete</span>
+                      </button>
+                    </td>
+                  )}
                 </tr>
               ))}
             </tbody>
@@ -275,7 +284,7 @@ const HubsPage: React.FC = () => {
           </div>
         </div>
       </Modal>
-    </Layout>
+    </Layout >
   );
 };
 

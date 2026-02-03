@@ -15,10 +15,10 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
 
   const navItems = [
     { path: "/dashboard", icon: "dashboard", label: "Dashboard", menu: "Main Menu", roles: [] as Role[] }, // Empty roles = all
-    { path: "/sites", icon: "storefront", label: "Sites", menu: "Main Menu", roles: ['ADMIN', 'MANAGER'] as Role[] },
-    { path: "/hubs", icon: "router", label: "Hubs", menu: "Main Menu", roles: ['ADMIN', 'MANAGER'] as Role[] },
-    { path: "/sensors", icon: "sensors", label: "Sensors", menu: "Main Menu", roles: ['ADMIN', 'MANAGER'] as Role[] },
-    { path: "/alerts", icon: "notifications", label: "Alerts", menu: "Main Menu", roles: ['ADMIN', 'MANAGER'] as Role[] },
+    { path: "/sites", icon: "storefront", label: "Sites", menu: "Main Menu", roles: ['ADMIN', 'MANAGER', 'STAFF'] as Role[] },
+    { path: "/hubs", icon: "router", label: "Hubs", menu: "Main Menu", roles: ['ADMIN', 'MANAGER', 'STAFF'] as Role[] },
+    { path: "/sensors", icon: "sensors", label: "Sensors", menu: "Main Menu", roles: ['ADMIN', 'MANAGER', 'STAFF'] as Role[] },
+    { path: "/alerts", icon: "notifications", label: "Alerts", menu: "Main Menu", roles: ['ADMIN', 'MANAGER', 'STAFF'] as Role[] },
     { path: "/users", icon: "manage_accounts", label: "Users", menu: "Administration", roles: ['ADMIN'] as Role[] },
   ];
 

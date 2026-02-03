@@ -1,12 +1,18 @@
 import React, { useState, useEffect } from 'react';
 import Layout from '../components/Layout';
 import Modal from '../components/Modal';
+import { useAuth } from '../context/AuthContext';
+
 
 
 
 import { siteService, Site } from '../services/siteService';
 
 const SitesPage: React.FC = () => {
+  const { hasRole } = useAuth();
+  const isAdmin = hasRole(['ADMIN']);
+  const canEdit = hasRole(['ADMIN', 'MANAGER']);
+
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [sites, setSites] = useState<Site[]>([]);
@@ -119,9 +125,11 @@ const SitesPage: React.FC = () => {
           <h3 className="text-2xl font-bold tracking-tight">IoT Sites Management</h3>
           <p className="text-slate-500 text-sm mt-1">Manage environmental monitoring sites across the chain.</p>
         </div>
-        <button onClick={handleAddNew} className="px-4 py-2 bg-white text-black hover:bg-slate-200 transition-colors rounded text-xs font-bold flex items-center gap-2">
-          <span className="material-symbols-outlined text-sm">add</span> Add New Site
-        </button>
+        {isAdmin && (
+          <button onClick={handleAddNew} className="px-4 py-2 bg-white text-black hover:bg-slate-200 transition-colors rounded text-xs font-bold flex items-center gap-2">
+            <span className="material-symbols-outlined text-sm">add</span> Add New Site
+          </button>
+        )}
       </div>
 
       <div className="bg-white/5 rounded-xl border border-border-muted overflow-hidden">
@@ -154,7 +162,7 @@ const SitesPage: React.FC = () => {
                   <th className="px-6 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Organization</th>
                   <th className="px-6 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Site Name</th>
                   <th className="px-6 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest text-center">Hubs</th>
-                  <th className="px-6 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest text-right">Actions</th>
+                  {canEdit && <th className="px-6 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest text-right">Actions</th>}
                 </tr>
               </thead>
               <tbody className="divide-y divide-border-muted">
@@ -171,22 +179,26 @@ const SitesPage: React.FC = () => {
                       </div>
                     </td>
                     <td className="px-6 py-4 text-center font-bold">{site.hubCount}</td>
-                    <td className="px-6 py-4 text-right flex justify-end gap-2">
-                      <button
-                        onClick={() => handleEdit(site)}
-                        className="text-slate-500 hover:text-white transition-colors"
-                        title="Edit"
-                      >
-                        <span className="material-symbols-outlined text-sm">edit</span>
-                      </button>
-                      <button
-                        onClick={() => initiateDelete(site.siteId)}
-                        className="text-slate-500 hover:text-red-500 transition-colors"
-                        title="Delete"
-                      >
-                        <span className="material-symbols-outlined text-sm">delete</span>
-                      </button>
-                    </td>
+                    {canEdit && (
+                      <td className="px-6 py-4 text-right flex justify-end gap-2">
+                        <button
+                          onClick={() => handleEdit(site)}
+                          className="text-slate-500 hover:text-white transition-colors"
+                          title="Edit"
+                        >
+                          <span className="material-symbols-outlined text-sm">edit</span>
+                        </button>
+                        {isAdmin && (
+                          <button
+                            onClick={() => initiateDelete(site.siteId)}
+                            className="text-slate-500 hover:text-red-500 transition-colors"
+                            title="Delete"
+                          >
+                            <span className="material-symbols-outlined text-sm">delete</span>
+                          </button>
+                        )}
+                      </td>
+                    )}
                   </tr>
                 ))}
                 {sites.length === 0 && (
@@ -289,7 +301,7 @@ const SitesPage: React.FC = () => {
           </div>
         </div>
       </Modal>
-    </Layout>
+    </Layout >
   );
 };
 

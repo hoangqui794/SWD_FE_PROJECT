@@ -2,10 +2,15 @@
 import React, { useState, useEffect } from 'react';
 import Layout from '../components/Layout';
 import Modal from '../components/Modal';
+import { useAuth } from '../context/AuthContext';
+
 import { alertService, Alert, AlertRule, CreateAlertRuleRequest } from '../services/alertService';
 import { sensorService, Sensor } from '../services/sensorService';
 
 const AlertsPage: React.FC = () => {
+    const { hasRole } = useAuth();
+    const canManage = hasRole(['ADMIN', 'MANAGER']);
+
     // Tabs: 'history' or 'rules'
     const [activeTab, setActiveTab] = useState<'history' | 'rules'>('history');
 
@@ -234,17 +239,19 @@ const AlertsPage: React.FC = () => {
                             ))}
                         </div>
                         {/* Create Rule Button (Shortcut) */}
-                        <button
-                            onClick={() => { setActiveTab('rules'); setIsRuleModalOpen(true); }}
-                            className="md:hidden px-4 py-2 bg-primary/10 text-primary border border-primary/50 rounded text-xs font-bold uppercase hover:bg-primary/20 transition-all"
-                        >
-                            + New Rule
-                        </button>
+                        {canManage && (
+                            <button
+                                onClick={() => { setActiveTab('rules'); setIsRuleModalOpen(true); }}
+                                className="md:hidden px-4 py-2 bg-primary/10 text-primary border border-primary/50 rounded text-xs font-bold uppercase hover:bg-primary/20 transition-all"
+                            >
+                                + New Rule
+                            </button>
+                        )}
                     </div>
                 )}
 
                 {/* Toolbar (Only for Rules) */}
-                {activeTab === 'rules' && (
+                {activeTab === 'rules' && canManage && (
                     <div className="flex justify-end">
                         <button
                             onClick={() => setIsRuleModalOpen(true)}
@@ -298,7 +305,7 @@ const AlertsPage: React.FC = () => {
                                         <th className="px-6 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Sensor</th>
                                         <th className="px-6 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Severity</th>
                                         <th className="px-6 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Status</th>
-                                        <th className="px-6 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest text-right">Actions</th>
+                                        {canManage && <th className="px-6 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest text-right">Actions</th>}
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-border-muted">
@@ -319,18 +326,20 @@ const AlertsPage: React.FC = () => {
                                                     {alert.status}
                                                 </span>
                                             </td>
-                                            <td className="px-6 py-4 text-right">
-                                                <div className="flex items-center justify-end gap-2">
-                                                    {alert.status === 'Active' && (
-                                                        <button onClick={() => handleResolve(alert.id)} className="px-3 py-1 bg-green-500/10 text-green-500 border border-green-500/50 rounded hover:bg-green-500/20 text-[10px] font-bold uppercase transition-colors">
-                                                            Resolve
+                                            {canManage && (
+                                                <td className="px-6 py-4 text-right">
+                                                    <div className="flex items-center justify-end gap-2">
+                                                        {alert.status === 'Active' && (
+                                                            <button onClick={() => handleResolve(alert.id)} className="px-3 py-1 bg-green-500/10 text-green-500 border border-green-500/50 rounded hover:bg-green-500/20 text-[10px] font-bold uppercase transition-colors">
+                                                                Resolve
+                                                            </button>
+                                                        )}
+                                                        <button onClick={() => handleDeleteAlert(alert.id)} className="p-1 text-slate-500 hover:text-red-500 transition-colors">
+                                                            <span className="material-symbols-outlined text-sm">delete</span>
                                                         </button>
-                                                    )}
-                                                    <button onClick={() => handleDeleteAlert(alert.id)} className="p-1 text-slate-500 hover:text-red-500 transition-colors">
-                                                        <span className="material-symbols-outlined text-sm">delete</span>
-                                                    </button>
-                                                </div>
-                                            </td>
+                                                    </div>
+                                                </td>
+                                            )}
                                         </tr>
                                     ))}
                                     {alerts.length === 0 && (

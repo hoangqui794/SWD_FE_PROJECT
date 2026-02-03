@@ -26,7 +26,7 @@ const App: React.FC = () => {
           </Route>
 
           {/* Role Protected Routes */}
-          <Route element={<ProtectedRoute allowedRoles={['ADMIN', 'MANAGER']} />}>
+          <Route element={<ProtectedRoute allowedRoles={['ADMIN', 'MANAGER', 'STAFF']} />}>
             <Route path="/sites" element={<SitesPage />} />
             <Route path="/hubs" element={<HubsPage />} />
             <Route path="/sensors" element={<SensorsPage />} />

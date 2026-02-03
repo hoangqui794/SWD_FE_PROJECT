@@ -2,10 +2,17 @@
 import React, { useState, useEffect } from 'react';
 import Layout from '../components/Layout';
 import Modal from '../components/Modal';
+import { useAuth } from '../context/AuthContext';
+
 import { sensorService, Sensor, CreateSensorRequest } from '../services/sensorService';
 import { hubService, Hub } from '../services/hubService';
+import { signalRService } from '../services/signalrService';
+
 
 const SensorsPage: React.FC = () => {
+  const { hasRole } = useAuth();
+  const canManage = hasRole(['ADMIN', 'MANAGER']);
+
   // State management
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [sensors, setSensors] = useState<Sensor[]>([]);
@@ -27,14 +34,32 @@ const SensorsPage: React.FC = () => {
   useEffect(() => {
     fetchSensors();
     fetchHubs();
+
+    // SignalR Integration
+    signalRService.startConnection();
+
+    const handleSensorUpdate = (data: any) => {
+      console.log("Realtime sensor update received:", data);
+      fetchSensors(false); // Silent refresh
+    };
+
+    signalRService.on("ReceiveSensorUpdate", handleSensorUpdate);
+
+    return () => {
+      signalRService.off("ReceiveSensorUpdate", handleSensorUpdate);
+    };
   }, [filterTypeId, filterHubId]);
 
   /**
    * Hàm gọi API để lấy danh sách sensors
    * Sử dụng sensorService.getAll() với các tham số filter
    */
-  const fetchSensors = async () => {
-    setIsLoading(true);
+  /**
+   * Hàm gọi API để lấy danh sách sensors
+   * Sử dụng sensorService.getAll() với các tham số filter
+   */
+  const fetchSensors = async (showLoading = true) => {
+    if (showLoading) setIsLoading(true);
     setError(null);
     try {
       const data = await sensorService.getAll(filterHubId, filterTypeId);
@@ -43,7 +68,7 @@ const SensorsPage: React.FC = () => {
       console.error("Failed to fetch sensors", error);
       setError('Không thể tải dữ liệu sensors. Vui lòng kiểm tra kết nối.');
     } finally {
-      setIsLoading(false);
+      if (showLoading) setIsLoading(false);
     }
   };
 
@@ -160,9 +185,11 @@ const SensorsPage: React.FC = () => {
           <h3 className="text-2xl font-bold tracking-tight">IoT Sensors Management</h3>
           <p className="text-slate-500 text-sm mt-1">Inventory and real-time status of environmental sensors.</p>
         </div>
-        <button onClick={handleOpenCreateModal} className="px-4 py-2 bg-white text-black hover:bg-zinc-200 transition-colors rounded text-xs font-bold flex items-center gap-2">
-          <span className="material-symbols-outlined text-sm">add</span> Register Sensor
-        </button>
+        {canManage && (
+          <button onClick={handleOpenCreateModal} className="px-4 py-2 bg-white text-black hover:bg-zinc-200 transition-colors rounded text-xs font-bold flex items-center gap-2">
+            <span className="material-symbols-outlined text-sm">add</span> Register Sensor
+          </button>
+        )}
       </div>
       <div className="bg-white/5 rounded-xl border border-border-muted overflow-hidden">
         {/* Filter Section */}
@@ -335,7 +362,7 @@ const SensorsPage: React.FC = () => {
           </div>
         </form>
       </Modal>
-    </Layout>
+    </Layout >
   );
 };
 

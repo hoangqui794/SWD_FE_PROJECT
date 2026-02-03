@@ -1,27 +1,43 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Layout from '../components/Layout';
 import Modal from '../components/Modal';
+import { userService, User } from '../services/userService';
 import { Role } from '../types/auth';
 
 const UsersPage: React.FC = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [users, setUsers] = useState([
-    { id: 1, name: "Alexander Pierce", email: "a.pierce@system.io", role: "ADMIN" as Role },
-    { id: 2, name: "Sarah Jenkins", email: "s.jenkins@system.io", role: "MANAGER" as Role },
-    { id: 3, name: "David Chen", email: "d.chen@system.io", role: "USER" as Role },
-  ]);
+  const [users, setUsers] = useState<User[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    fetchUsers();
+  }, []);
+
+  const fetchUsers = async () => {
+    setIsLoading(true);
+    setError(null);
+    try {
+      const data = await userService.getAll();
+      setUsers(data);
+    } catch (error) {
+      console.error("Failed to fetch users", error);
+      setError("Failed to load users. Please check connection.");
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   const [formData, setFormData] = useState({
     name: "",
     email: "",
-    role: "USER" as Role
+    role: "STAFF"
   });
 
   const handleCreateUser = () => {
-    // Mock user creation
-    setUsers([...users, { id: users.length + 1, ...formData }]);
+    // Placeholder for create user logic
+    alert("Create user functionality not yet implemented via API");
     setIsModalOpen(false);
-    setFormData({ name: "", email: "", role: "USER" });
   };
 
   return (
@@ -35,7 +51,11 @@ const UsersPage: React.FC = () => {
           <span className="material-symbols-outlined text-sm">person_add</span> Create User
         </button>
       </div>
-      <div className="bg-white/5 rounded-xl border border-border-muted overflow-hidden">
+      {isLoading ? (
+        <div className="p-8 text-center text-slate-500">Loading users...</div>
+      ) : error ? (
+        <div className="p-8 text-center text-red-500">{error}</div>
+      ) : (
         <div className="overflow-x-auto">
           <table className="w-full text-left">
             <thead className="bg-zinc-900/50 border-b border-border-muted">
@@ -43,16 +63,22 @@ const UsersPage: React.FC = () => {
                 <th className="px-6 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Full Name</th>
                 <th className="px-6 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Email</th>
                 <th className="px-6 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Role</th>
+                <th className="px-6 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Status</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-border-muted">
               {users.map((user) => (
-                <tr key={user.id} className="hover:bg-white/5 transition-colors">
-                  <td className="px-6 py-4 text-sm font-medium text-white">{user.name}</td>
+                <tr key={user.userId} className="hover:bg-white/5 transition-colors">
+                  <td className="px-6 py-4 text-sm font-medium text-white">{user.fullName}</td>
                   <td className="px-6 py-4 text-xs text-slate-400">{user.email}</td>
                   <td className="px-6 py-4">
                     <span className={`text-[10px] font-bold uppercase bg-white/10 px-2 py-1 rounded text-white`}>
-                      {user.role}
+                      {user.roleName}
+                    </span>
+                  </td>
+                  <td className="px-6 py-4">
+                    <span className={`text-[10px] font-bold uppercase ${user.isActive ? 'text-green-500' : 'text-red-500'}`}>
+                      {user.isActive ? 'Active' : 'Inactive'}
                     </span>
                   </td>
                 </tr>
@@ -60,7 +86,7 @@ const UsersPage: React.FC = () => {
             </tbody>
           </table>
         </div>
-      </div>
+      )}
 
       <Modal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} title="Create User">
         <form className="p-6 space-y-6">
