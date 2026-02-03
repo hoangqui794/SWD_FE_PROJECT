@@ -1,0 +1,72 @@
+
+*** YÊU CẦU API CHO TRANG DASHBOARD (FRONTEND REQUIREMENT) ***
+
+Dưới đây là danh sách các API cần thiết để hoàn thiện giao diện Dashboard:
+
+--------------------------------------------------------------------------------
+1. API BIỂU ĐỒ XU HƯỚNG (ENVIRONMENTAL TRENDS CHART)
+Mục đích: Vẽ biểu đồ đường theo dõi biến thiên Nhiệt độ hoặc Độ ẩm theo thời gian.
+
+Endpoint: GET /api/dashboard/chart
+Query Parameters:
+  - type: string (Giá trị: "Temperature" | "Humidity")
+  - range: string (Giá trị: "24h" | "7d" | "30d") - Mặc định "7d"
+
+Response Body (200 OK):
+{
+  "metric": "Temperature",
+  "unit": "°C",
+  "data": [
+    {
+      "time": "2024-02-03T08:00:00Z", // Thời gian (Trục X)
+      "value": 28.5                   // Giá trị trung bình (Trục Y)
+    },
+    {
+      "time": "2024-02-03T12:00:00Z",
+      "value": 31.2
+    }
+    // ... Danh sách các điểm dữ liệu đã được gom nhóm (Group by Hour/Day)
+  ]
+}
+
+Note: Backend cần xử lý tính toán trung bình (average) dữ liệu history để trả về số lượng điểm phù hợp (khoảng 20-50 điểm) thay vì trả về raw data, giúp biểu đồ load nhanh và mượt hơn.
+
+--------------------------------------------------------------------------------
+2. API CẢNH BÁO MỚI NHẤT (RECENT ALERTS)
+Mục đích: Hiển thị bảng "Priority Sensor Alerts" (5 cảnh báo quan trọng nhất/mới nhất).
+
+Endpoint: GET /api/dashboard/alerts
+Query Parameters:
+  - limit: number (Mặc định: 5)
+
+Response Body (200 OK):
+{
+  "data": [
+    {
+      "id": 101,
+      "sensorName": "Temp Sensor 01",
+      "location": "Warehouse A",  // Vị trí (Tên Site/Hub)
+      "value": 45.2,              // Giá trị lúc cảnh báo
+      "metricUnit": "°C",
+      "severity": "Critical",     // Mức độ
+      "status": "Active",
+      "time": "2024-02-03T09:15:00Z"
+    },
+    // ...
+  ]
+}
+
+--------------------------------------------------------------------------------
+3. API THỐNG KÊ TỔNG QUAN (DASHBOARD STATS) - UPDATE
+Mục đích: Cập nhật API hiện tại (/api/dashboard/stats) để trả về đầy đủ thông tin cho các thẻ thống kê.
+
+Endpoint: GET /api/dashboard/stats
+
+Response Body (200 OK) - Cần bổ sung các trường đánh dấu (*):
+{
+  "total_sites": 5,           // Tổng số Site
+  "total_hubs": 20,           // Tổng số Hub
+  "online_hubs": 18,          // (*) Số Hub đang Online (để hiển thị "18 / 20")
+  "total_sensors": 150,       // (*) Tổng số Sensor
+  "active_alerts": 3          // Số cảnh báo đang Active (chưa xử lý)
+}
