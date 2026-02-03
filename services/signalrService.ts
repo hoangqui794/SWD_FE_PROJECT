@@ -3,7 +3,7 @@ import { SIGNALR_HUB_URL } from '../config';
 
 class SignalRService {
     private connection: signalR.HubConnection;
-    private connectionStateCallback: ((status: string) => void) | null = null;
+
 
     constructor() {
         console.warn("SignalR Service Instantiated");
@@ -31,16 +31,20 @@ class SignalRService {
         });
     }
 
-    public setConnectionStateCallback(callback: (status: string) => void) {
-        this.connectionStateCallback = callback;
+    private connectionStateListeners: ((status: string) => void)[] = [];
+
+    public addConnectionStateListener(callback: (status: string) => void) {
+        this.connectionStateListeners.push(callback);
         // Send current state immediately
-        this.notifyStateChange(this.connection.state);
+        callback(this.connection.state);
+    }
+
+    public removeConnectionStateListener(callback: (status: string) => void) {
+        this.connectionStateListeners = this.connectionStateListeners.filter(listener => listener !== callback);
     }
 
     private notifyStateChange(status: string) {
-        if (this.connectionStateCallback) {
-            this.connectionStateCallback(status);
-        }
+        this.connectionStateListeners.forEach(listener => listener(status));
     }
 
     public async startConnection() {
