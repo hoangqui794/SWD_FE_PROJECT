@@ -42,5 +42,15 @@ export const userService = {
 
     delete: async (id: number): Promise<void> => {
         await apiClient.delete(`/api/users/${id}`);
+    },
+
+    activate: async (id: number): Promise<any> => {
+        const response = await apiClient.put(`/api/users/${id}/activate`, {});
+        return response.data;
+    },
+
+    deactivate: async (id: number): Promise<any> => {
+        const response = await apiClient.put(`/api/users/${id}/deactivate`, {});
+        return response.data;
     }
 };

@@ -56,7 +56,7 @@ const UsersPage: React.FC = () => {
   const paginate = (pageNumber: number) => setCurrentPage(pageNumber);
 
   const [editingUserId, setEditingUserId] = useState<number | null>(null);
-  const [deleteTargetId, setDeleteTargetId] = useState<number | null>(null);
+  const [statusConfirmUser, setStatusConfirmUser] = useState<User | null>(null);
 
   const [formData, setFormData] = useState<CreateUserRequest>({
     fullName: "",
@@ -119,17 +119,41 @@ const UsersPage: React.FC = () => {
     }
   };
 
-  const confirmDelete = async () => {
-    if (!deleteTargetId) return;
+
+
+  const initiateStatusChange = (user: User) => {
+    setStatusConfirmUser(user);
+  };
+
+  const confirmStatusChange = async () => {
+    if (!statusConfirmUser) return;
+    const user = statusConfirmUser;
+
     try {
-      await userService.delete(deleteTargetId);
-      showNotification("User deleted successfully!", 'success');
-      setUsers(users.filter(u => u.userId !== deleteTargetId));
+      if (user.isActive) {
+        const data = await userService.deactivate(user.userId);
+        showNotification(data.message || `Deactivated user ${user.fullName}`, 'success');
+      } else {
+        const data = await userService.activate(user.userId);
+        showNotification(data.message || `Activated user ${user.fullName}`, 'success');
+      }
+      // Happy path: simply toggle the state
+      setUsers(users.map(u => u.userId === user.userId ? { ...u, isActive: !u.isActive } : u));
     } catch (error: any) {
-      console.error("Failed to delete user", error);
-      showNotification("Failed to delete user: " + (error.response?.data?.message || error.message), 'error');
+      console.error("Failed to change user status", error);
+
+      const msg = error.response?.data?.message || error.message;
+
+      // Specific handling for "Already activated" logic error (HTTP 400)
+      if (error.response?.status === 400 && !user.isActive) { // Attempted to activate but failed with 400
+        showNotification(msg, 'warning');
+        // Auto-correct local state to match reality (it's actually active)
+        setUsers(users.map(u => u.userId === user.userId ? { ...u, isActive: true } : u));
+      } else {
+        showNotification("Failed to change status: " + msg, 'error');
+      }
     } finally {
-      setDeleteTargetId(null);
+      setStatusConfirmUser(null);
     }
   };
 
@@ -171,9 +195,16 @@ const UsersPage: React.FC = () => {
                     </span>
                   </td>
                   <td className="px-6 py-4">
-                    <span className={`text-[10px] font-bold uppercase ${user.isActive ? 'text-green-500' : 'text-red-500'}`}>
+                    <button
+                      onClick={() => initiateStatusChange(user)}
+                      className={`text-[10px] font-bold uppercase px-2 py-1 rounded transition-colors ${user.isActive
+                        ? 'text-green-500 bg-green-500/10 border border-green-500/20 hover:bg-green-500/20'
+                        : 'text-red-500 bg-red-500/10 border border-red-500/20 hover:bg-red-500/20'
+                        }`}
+                      title={user.isActive ? "Click to Deactivate" : "Click to Activate"}
+                    >
                       {user.isActive ? 'Active' : 'Inactive'}
-                    </span>
+                    </button>
                   </td>
                   <td className="px-6 py-4 text-right flex justify-end gap-2">
                     <button
@@ -182,13 +213,6 @@ const UsersPage: React.FC = () => {
                       title="Edit"
                     >
                       <span className="material-symbols-outlined text-sm">edit</span>
-                    </button>
-                    <button
-                      onClick={() => setDeleteTargetId(user.userId)}
-                      className="text-slate-500 hover:text-red-500 transition-colors"
-                      title="Delete"
-                    >
-                      <span className="material-symbols-outlined text-sm">delete</span>
                     </button>
                   </td>
                 </tr>
@@ -348,34 +372,45 @@ const UsersPage: React.FC = () => {
         </form>
       </Modal>
 
-      {/* Delete Confirmation Modal */}
-      <Modal isOpen={!!deleteTargetId} onClose={() => setDeleteTargetId(null)} title="Confirm Deletion">
+      {/* Status Change Confirmation Modal */}
+      <Modal isOpen={!!statusConfirmUser} onClose={() => setStatusConfirmUser(null)} title={statusConfirmUser?.isActive ? "Deactivate User" : "Activate User"}>
         <div className="p-6 space-y-4">
           <div className="flex flex-col items-center justify-center text-center space-y-2 py-4">
-            <div className="w-12 h-12 rounded-full bg-red-500/10 flex items-center justify-center mb-2">
-              <span className="material-symbols-outlined text-red-500 text-2xl">warning</span>
+            <div className={`w-12 h-12 rounded-full flex items-center justify-center mb-2 ${statusConfirmUser?.isActive ? 'bg-red-500/10' : 'bg-green-500/10'}`}>
+              <span className={`material-symbols-outlined text-2xl ${statusConfirmUser?.isActive ? 'text-red-500' : 'text-green-500'}`}>
+                {statusConfirmUser?.isActive ? 'block' : 'check_circle'}
+              </span>
             </div>
-            <h4 className="text-lg font-bold text-white">Delete User?</h4>
+            <h4 className="text-lg font-bold text-white">
+              {statusConfirmUser?.isActive ? "Deactivate User?" : "Activate User?"}
+            </h4>
             <p className="text-slate-400 text-sm">
-              Are you sure you want to delete this user? This account will no longer be able to log in.
+              {statusConfirmUser?.isActive
+                ? `Are you sure you want to deactivate ${statusConfirmUser?.fullName}? They will not be able to log in.`
+                : `Are you sure you want to activate ${statusConfirmUser?.fullName}? They will be able to log in.`}
             </p>
           </div>
           <div className="flex gap-3 pt-2">
             <button
-              onClick={() => setDeleteTargetId(null)}
+              onClick={() => setStatusConfirmUser(null)}
               className="flex-1 px-6 py-2.5 border border-border-muted text-slate-400 rounded text-xs font-bold uppercase hover:bg-white/5"
             >
               Cancel
             </button>
             <button
-              onClick={confirmDelete}
-              className="flex-1 px-6 py-2.5 bg-red-500 text-white rounded text-xs font-bold uppercase hover:bg-red-600 shadow-lg shadow-red-500/20"
+              onClick={confirmStatusChange}
+              className={`flex-1 px-6 py-2.5 text-white rounded text-xs font-bold uppercase shadow-lg ${statusConfirmUser?.isActive
+                  ? 'bg-red-500 hover:bg-red-600 shadow-red-500/20'
+                  : 'bg-green-500 hover:bg-green-600 shadow-green-500/20'
+                }`}
             >
-              Yes, Delete
+              {statusConfirmUser?.isActive ? "Yes, Deactivate" : "Yes, Activate"}
             </button>
           </div>
         </div>
       </Modal>
+
+
     </Layout>
   );
 };
