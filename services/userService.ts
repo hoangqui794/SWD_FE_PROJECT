@@ -23,7 +23,7 @@ export interface CreateUserRequest {
 
 export interface UpdateUserRequest {
     fullName: string;
-    siteId: number;
+    siteId: number | null;
 }
 
 export const userService = {

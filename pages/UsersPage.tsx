@@ -107,7 +107,7 @@ const UsersPage: React.FC = () => {
         // Update User
         await userService.update(editingUserId, {
           fullName: formData.fullName,
-          siteId: formData.siteId
+          siteId: formData.siteId === 0 ? null : formData.siteId
         });
         showNotification("User updated successfully!", 'success');
       } else {
