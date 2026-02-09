@@ -8,6 +8,7 @@ import HubsPage from './pages/HubsPage';
 import SensorsPage from './pages/SensorsPage';
 import AlertsPage from './pages/AlertsPage';
 import UsersPage from './pages/UsersPage';
+import OrganizationsPage from './pages/OrganizationsPage';
 import { AuthProvider } from './context/AuthContext';
 import { NotificationProvider } from './context/NotificationContext';
 import ProtectedRoute from './components/ProtectedRoute';
@@ -37,6 +38,7 @@ const App: React.FC = () => {
 
             <Route element={<ProtectedRoute allowedRoles={['ADMIN']} />}>
               <Route path="/users" element={<UsersPage />} />
+              <Route path="/organizations" element={<OrganizationsPage />} />
             </Route>
 
             {/* Fallback */}

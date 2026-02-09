@@ -24,6 +24,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
     { path: "/hubs", icon: "router", label: "Hubs", menu: "Main Menu", roles: ['ADMIN', 'MANAGER', 'STAFF'] as Role[] },
     { path: "/sensors", icon: "sensors", label: "Sensors", menu: "Main Menu", roles: ['ADMIN', 'MANAGER', 'STAFF'] as Role[] },
     { path: "/alerts", icon: "notifications", label: "Alerts", menu: "Main Menu", roles: ['ADMIN', 'MANAGER', 'STAFF'] as Role[] },
+    { path: "/organizations", icon: "domain", label: "Organizations", menu: "Administration", roles: ['ADMIN'] as Role[] },
     { path: "/users", icon: "manage_accounts", label: "Users", menu: "Administration", roles: ['ADMIN'] as Role[] },
   ];
 
