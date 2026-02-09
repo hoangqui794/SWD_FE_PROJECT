@@ -154,30 +154,7 @@ const SensorsPage: React.FC = () => {
     setIsModalOpen(true);
   };
 
-  /**
-   * Hàm helper để hiển thị giá trị sensor với đơn vị
-   */
-  const formatSensorValue = (sensor: Sensor) => {
-    const value = sensor.currentValue;
 
-    // Xác định đơn vị dựa trên typeName
-    let unit = '';
-    switch (sensor.typeName) {
-      case 'Temperature':
-        unit = '°C';
-        break;
-      case 'Humidity':
-        unit = '%';
-        break;
-      case 'Pressure':
-        unit = 'hPa';
-        break;
-      default:
-        unit = '';
-    }
-
-    return `${value.toFixed(2)} ${unit}`;
-  };
 
   /**
    * Hàm helper để xác định màu sắc dựa trên status
@@ -202,8 +179,8 @@ const SensorsPage: React.FC = () => {
           <div className="flex items-center gap-3">
             <h3 className="text-2xl font-bold tracking-tight">IoT Sensors Management</h3>
             <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase border ${connectionStatus === 'Connected' ? 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20' :
-                connectionStatus === 'Connecting...' || connectionStatus === 'Reconnecting' ? 'bg-yellow-500/10 text-yellow-500 border-yellow-500/20' :
-                  'bg-red-500/10 text-red-500 border-red-500/20'
+              connectionStatus === 'Connecting...' || connectionStatus === 'Reconnecting' ? 'bg-yellow-500/10 text-yellow-500 border-yellow-500/20' :
+                'bg-red-500/10 text-red-500 border-red-500/20'
               }`}>
               {connectionStatus === 'Connected' ? '● Live' : `○ ${connectionStatus}`}
             </span>
@@ -270,9 +247,9 @@ const SensorsPage: React.FC = () => {
                   <th className="px-6 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Sensor Name</th>
                   <th className="px-6 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Type</th>
                   <th className="px-6 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Hub</th>
-                  <th className="px-6 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Value</th>
+
                   <th className="px-6 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Status</th>
-                  <th className="px-6 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Last Updated</th>
+                  {/* <th className="px-6 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Last Updated</th> */}
                 </tr>
               </thead>
               <tbody className="divide-y divide-border-muted">
@@ -282,17 +259,15 @@ const SensorsPage: React.FC = () => {
                     <td className="px-6 py-4 text-sm font-medium text-white">{sensor.sensorName}</td>
                     <td className="px-6 py-4 text-xs text-slate-400">{sensor.typeName}</td>
                     <td className="px-6 py-4 text-xs text-slate-400">{sensor.hubName}</td>
-                    <td className={`px-6 py-4 font-bold ${getStatusColor(sensor.status)}`}>
-                      {formatSensorValue(sensor)}
-                    </td>
+
                     <td className="px-6 py-4">
-                      <span className={`text-[10px] font-bold uppercase ${getStatusColor(sensor.status)}`}>
+                      <span className={`text-[10px] efont-bold uppercase ${getStatusColor(sensor.status)}`}>
                         {sensor.status}
                       </span>
                     </td>
-                    <td className="px-6 py-4 text-xs text-slate-500">
+                    {/* <td className="px-6 py-4 text-xs text-slate-500">
                       {sensor.lastUpdate ? new Date(sensor.lastUpdate).toLocaleString('vi-VN') : 'N/A'}
-                    </td>
+                    </td> */}
                   </tr>
                 ))}
                 {sensors.length === 0 && (

@@ -8,6 +8,7 @@ import { useNotification } from '../context/NotificationContext';
 
 
 import { siteService, Site } from '../services/siteService';
+import { organizationService, Organization } from '../services/organizationService';
 
 const SitesPage: React.FC = () => {
   const { hasRole } = useAuth();
@@ -18,13 +19,24 @@ const SitesPage: React.FC = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [sites, setSites] = useState<Site[]>([]);
+  const [organizations, setOrganizations] = useState<Organization[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // Fetch sites
+  // Fetch sites and organizations
   useEffect(() => {
     fetchSites();
+    fetchOrganizations();
   }, [searchTerm]);
+
+  const fetchOrganizations = async () => {
+    try {
+      const data = await organizationService.getAll();
+      setOrganizations(data);
+    } catch (error) {
+      console.error("Failed to fetch organizations", error);
+    }
+  };
 
   const fetchSites = async () => {
     setIsLoading(true);
@@ -43,7 +55,7 @@ const SitesPage: React.FC = () => {
   // State for form handling
   const [editingId, setEditingId] = useState<number | null>(null);
   const [formData, setFormData] = useState({
-    org: "",
+    orgId: 0,
     name: "",
     address: "",
     geoLocation: "",
@@ -55,18 +67,28 @@ const SitesPage: React.FC = () => {
 
   const handleAddNew = () => {
     setEditingId(null);
-    setFormData({ org: "WinMart Retail Group", name: "", address: "", geoLocation: "", hubs: "0" });
+    // Default to first org if available, else 0
+    const defaultOrgId = organizations.length > 0 ? organizations[0].orgId : 0;
+    setFormData({ orgId: defaultOrgId, name: "", address: "", geoLocation: "", hubs: "0" });
     setIsModalOpen(true);
   };
 
   const handleEdit = (site: Site) => {
     setEditingId(site.siteId);
+
+    // Attempt to find orgId if missing (backend list might not return it)
+    let currentOrgId = site.orgId;
+    if (!currentOrgId && site.orgName) {
+      const foundOrg = organizations.find(o => o.name === site.orgName);
+      if (foundOrg) currentOrgId = foundOrg.orgId;
+    }
+
     setFormData({
-      org: site.orgName,
+      orgId: currentOrgId || 0,
       name: site.name,
       address: site.address,
       geoLocation: site.geoLocation,
-      hubs: site.hubCount.toString()
+      hubs: site.hubCount ? site.hubCount.toString() : "0"
     });
     setIsModalOpen(true);
   };
@@ -98,17 +120,29 @@ const SitesPage: React.FC = () => {
   };
 
   const handleSubmit = async () => {
+    // Attempt to auto-correct orgId using cached organizations if formData.orgId is invalid (0) but we have a single org
+    let submitOrgId = formData.orgId;
+    if (submitOrgId === 0 && organizations.length > 0) {
+      // Fallback: If only 1 org, use it.
+      if (organizations.length === 1) submitOrgId = organizations[0].orgId;
+    }
+
+    if (submitOrgId === 0) {
+      showNotification("Please select an organization", "warning");
+      return;
+    }
+
     try {
       if (editingId) {
         await siteService.update(editingId, {
-          orgId: 1, // Defaulting to 1 as per current logic
+          orgId: submitOrgId,
           name: formData.name,
           address: formData.address,
           geoLocation: formData.geoLocation || "0,0"
         });
       } else {
         await siteService.create({
-          orgId: 1, // Default for "WinMart Retail Group"
+          orgId: submitOrgId,
           name: formData.name,
           address: formData.address,
           geoLocation: formData.geoLocation || "0,0"
@@ -226,12 +260,16 @@ const SitesPage: React.FC = () => {
         <form className="p-6 space-y-6">
           <div className="space-y-2">
             <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Organization</label>
-            <input
-              value={formData.org}
-              onChange={(e) => setFormData({ ...formData, org: e.target.value })}
-              className="w-full bg-zinc-900 border border-border-muted rounded-lg px-4 py-3 text-sm focus:ring-1 focus:ring-primary outline-none text-white"
-              placeholder="Organization Name"
-            />
+            <select
+              value={formData.orgId}
+              onChange={(e) => setFormData({ ...formData, orgId: Number(e.target.value) })}
+              className="w-full bg-zinc-900 border border-border-muted rounded-lg px-4 py-3 text-sm focus:ring-1 focus:ring-primary outline-none text-white appearance-none"
+            >
+              <option value={0} disabled>Select Organization</option>
+              {organizations.map(org => (
+                <option key={org.orgId} value={org.orgId}>{org.name}</option>
+              ))}
+            </select>
           </div>
           <div className="space-y-2">
             <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Site Name</label>

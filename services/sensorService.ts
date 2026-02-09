@@ -9,7 +9,7 @@ export interface Sensor {
     typeName: string;          // Tên loại sensor
     sensorName: string;        // Tên sensor (VD: "Temp-Sensor-01")
     currentValue: number;      // Giá trị hiện tại
-    lastUpdate: string;        // Thời gian cập nhật cuối (ISO format)
+    lastUpdate: string | null; // Thời gian cập nhật cuối (ISO format)
     status: string;            // Trạng thái: "Online", "Offline", "Warning"
 }
 
@@ -24,6 +24,7 @@ export interface CreateSensorRequest {
 interface ApiResponse<T> {
     message: string;
     count: number;
+    userSiteId: number | null;
     data: T;
 }
 
