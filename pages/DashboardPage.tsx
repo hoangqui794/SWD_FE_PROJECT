@@ -7,15 +7,21 @@ import { getDashboardStats, DashboardStats } from '../services/dashboardService'
 const DashboardPage: React.FC = () => {
   const [statsData, setStatsData] = useState<DashboardStats | null>(null);
 
+  const [loading, setLoading] = useState<boolean>(false);
+
+  const fetchStats = async () => {
+    setLoading(true);
+    try {
+      const data = await getDashboardStats();
+      setStatsData(data);
+    } catch (error) {
+      console.error('Failed to fetch dashboard stats', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   useEffect(() => {
-    const fetchStats = async () => {
-      try {
-        const data = await getDashboardStats();
-        setStatsData(data);
-      } catch (error) {
-        console.error('Failed to fetch dashboard stats', error);
-      }
-    };
     fetchStats();
   }, []);
 
@@ -37,8 +43,12 @@ const DashboardPage: React.FC = () => {
           <button className="px-4 py-2 bg-border-muted hover:bg-zinc-800 transition-colors rounded text-xs font-bold flex items-center gap-2 text-white">
             <span className="material-symbols-outlined text-sm">download</span> Export
           </button>
-          <button className="px-4 py-2 bg-primary hover:bg-primary/80 transition-colors rounded text-xs font-bold text-white flex items-center gap-2">
-            <span className="material-symbols-outlined text-sm">refresh</span> Refresh
+          <button
+            onClick={fetchStats}
+            disabled={loading}
+            className="px-4 py-2 bg-primary hover:bg-primary/80 transition-colors rounded text-xs font-bold text-white flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            <span className={`material-symbols-outlined text-sm ${loading ? 'animate-spin' : ''}`}>refresh</span> Refresh
           </button>
         </div>
       </div>
