@@ -1,14 +1,29 @@
 
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import Layout from '../components/Layout';
 import { Link } from 'react-router-dom';
+import { getDashboardStats, DashboardStats } from '../services/dashboardService';
 
 const DashboardPage: React.FC = () => {
+  const [statsData, setStatsData] = useState<DashboardStats | null>(null);
+
+  useEffect(() => {
+    const fetchStats = async () => {
+      try {
+        const data = await getDashboardStats();
+        setStatsData(data);
+      } catch (error) {
+        console.error('Failed to fetch dashboard stats', error);
+      }
+    };
+    fetchStats();
+  }, []);
+
   const stats = [
-    { label: "Total Sites", value: "24", icon: "store" },
-    { label: "Active Alerts", value: "03", icon: "warning", color: "text-red-500" },
-    { label: "Hubs Online", value: "18", total: "/ 20", icon: "router", color: "text-primary" },
-    { label: "Total Sensors", value: "142", icon: "sensors" },
+    { label: "Total Sites", value: statsData?.total_sites.toString() || "0", icon: "store" },
+    { label: "Pending Alerts", value: statsData?.pending_alerts.toString() || "0", icon: "warning", color: statsData?.pending_alerts ? "text-red-500" : "text-white" },
+    { label: "Total Hubs", value: statsData?.total_hubs.toString() || "0", icon: "router", color: "text-primary" },
+    { label: "Active Sensors", value: statsData?.active_sensors.toString() || "0", icon: "sensors" },
   ];
 
   return (
@@ -16,7 +31,7 @@ const DashboardPage: React.FC = () => {
       <div className="flex justify-between items-end mb-8">
         <div>
           <h3 className="text-2xl font-bold tracking-tight">System Status</h3>
-          <p className="text-slate-500 text-sm mt-1">Real-time metrics from 24 active locations.</p>
+          <p className="text-slate-500 text-sm mt-1">Real-time metrics from {statsData?.total_sites || 0} active locations.</p>
         </div>
         <div className="flex gap-2">
           <button className="px-4 py-2 bg-border-muted hover:bg-zinc-800 transition-colors rounded text-xs font-bold flex items-center gap-2 text-white">
@@ -37,7 +52,7 @@ const DashboardPage: React.FC = () => {
             </div>
             <div className="flex items-baseline gap-1">
               <p className={`text-4xl font-bold font-display ${stat.color || 'text-white'}`}>{stat.value}</p>
-              {stat.total && <p className="text-slate-500 font-medium">{stat.total}</p>}
+
             </div>
           </div>
         ))}
@@ -57,16 +72,16 @@ const DashboardPage: React.FC = () => {
         </div>
         <div className="bg-white/5 rounded-xl border border-border-muted p-8 relative overflow-hidden h-72">
           <svg className="absolute inset-0 w-full h-full p-4" viewBox="0 0 100 40" preserveAspectRatio="none">
-            <path 
-              d="M0,35 Q10,32 20,36 T40,20 T60,25 T80,10 T100,15" 
-              fill="none" 
-              stroke="#1791cf" 
-              strokeWidth="0.5" 
-              className="chart-line" 
+            <path
+              d="M0,35 Q10,32 20,36 T40,20 T60,25 T80,10 T100,15"
+              fill="none"
+              stroke="#1791cf"
+              strokeWidth="0.5"
+              className="chart-line"
             />
-            <path 
-              d="M0,35 Q10,32 20,36 T40,20 T60,25 T80,10 T100,15 L100,40 L0,40 Z" 
-              fill="rgba(23, 145, 207, 0.1)" 
+            <path
+              d="M0,35 Q10,32 20,36 T40,20 T60,25 T80,10 T100,15 L100,40 L0,40 Z"
+              fill="rgba(23, 145, 207, 0.1)"
             />
           </svg>
         </div>
