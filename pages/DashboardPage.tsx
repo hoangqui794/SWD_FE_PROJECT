@@ -31,9 +31,11 @@ const DashboardPage: React.FC = () => {
   const [dateTo, setDateTo] = useState<string>(() => new Date().toISOString().split('T')[0]);
   const [selectedHistorySensorId, setSelectedHistorySensorId] = useState<number | null>(null);
 
-  const fetchStats = async () => {
-    setLoading(true);
-    setAlertsLoading(true);
+  const fetchStats = useCallback(async (silent: boolean = false) => {
+    if (!silent) {
+      setLoading(true);
+      setAlertsLoading(true);
+    }
 
     // Fetch stats separately
     try {
@@ -56,7 +58,7 @@ const DashboardPage: React.FC = () => {
     } finally {
       setAlertsLoading(false);
     }
-  };
+  }, []);
 
   const fetchCurrentTemperature = useCallback(async (hubId: number) => {
     setEnvLoading(true);
@@ -91,27 +93,61 @@ const DashboardPage: React.FC = () => {
     }
   }, []); // Gỡ bỏ phụ thuộc vào selectedHistorySensorId để tránh loop
 
+  const fetchHubs = useCallback(async () => {
+    try {
+      const hubsData = await hubService.getAll();
+      setHubs(hubsData);
+      if (hubsData.length > 0 && !selectedHubId) {
+        setSelectedHubId(hubsData[0].hubId);
+      }
+    } catch (error) {
+      console.error("Failed to fetch hubs", error);
+    }
+  }, [selectedHubId]);
+
+  const handleRefreshAll = useCallback(async () => {
+    await fetchStats();
+    await fetchHubs();
+    if (selectedHubId) {
+      await fetchCurrentTemperature(selectedHubId);
+      await fetchHistory(selectedHubId, dateFrom, dateTo);
+    }
+  }, [fetchStats, fetchHubs, selectedHubId, fetchCurrentTemperature, fetchHistory, dateFrom, dateTo]);
+
   useEffect(() => {
     fetchStats();
-    const fetchHubs = async () => {
-      try {
-        const hubsData = await hubService.getAll();
-        setHubs(hubsData);
-        if (hubsData.length > 0) {
-          setSelectedHubId(hubsData[0].hubId);
-        }
-      } catch (error) {
-        console.error("Failed to fetch hubs", error);
-      }
-    };
     fetchHubs();
   }, []);
 
   // Lắng nghe SignalR để cập nhật bảng Alert và Stats ngay lập tức
   useEffect(() => {
-    const handleRealtimeUpdate = () => {
-      console.log("Dashboard: SignalR alert received, updating data...");
-      fetchStats(); // Hàm này cập nhật cả Stats và Recent Alerts
+    const handleRealtimeUpdate = (data: any) => {
+      console.log("Dashboard: SignalR alert received, updating UI immediately...", data);
+
+      const payload = data?.alert;
+      if (payload) {
+        // Tạo một đối tượng alert mới giả lập từ dữ liệu SignalR để hiển thị ngay
+        const newAlert = {
+          id: Date.now(), // ID tạm thời
+          sensorName: payload.sensorName || "Unknown Sensor",
+          location: payload.siteName || "Unknown Location",
+          value: payload.value,
+          metricUnit: '',
+          severity: payload.priority || 'High',
+          status: 'Active',
+          time: data.timestamp || new Date().toISOString()
+        };
+
+        // Đẩy cảnh báo mới lên đầu danh sách và giữ lại tối đa 5 cái
+        setRecentAlerts(prev => {
+          // Kiểm tra tránh trùng lặp nếu API và SignalR về cùng lúc
+          const exists = prev.some(a => a.sensorName === newAlert.sensorName && a.time === newAlert.time);
+          if (exists) return prev;
+          return [newAlert, ...prev].slice(0, 5);
+        });
+      }
+
+      fetchStats(true); // Cập nhật ngầm các stats khác như tổng số cảnh báo
     };
 
     signalRService.on("ReceiveAlertNotification", handleRealtimeUpdate);
@@ -202,10 +238,10 @@ const DashboardPage: React.FC = () => {
           <p className="text-slate-500 text-sm mt-1">Global metrics from {statsData?.total_sites || 0} active locations.</p>
         </div>
         <button
-          onClick={fetchStats}
+          onClick={handleRefreshAll}
           className="px-4 py-2 bg-primary hover:bg-primary/80 transition-colors rounded text-xs font-bold text-white flex items-center gap-2"
         >
-          <span className={`material-symbols-outlined text-sm ${loading ? 'animate-spin' : ''}`}>refresh</span> Refresh
+          <span className={`material-symbols-outlined text-sm ${(loading || envLoading || historyLoading) ? 'animate-spin' : ''}`}>refresh</span> Refresh
         </button>
       </div>
 
