@@ -267,7 +267,7 @@ const DashboardPage: React.FC = () => {
                           <div className="flex items-center gap-1.5">
                             <div className={`w-1.5 h-1.5 rounded-full ${isSensorOnline ? 'bg-emerald-500 animate-pulse' : 'bg-slate-500'}`}></div>
                             <span className={`text-[10px] font-bold uppercase ${isSensorOnline ? 'text-emerald-500' : 'text-slate-500'}`}>
-                              {isSensorOnline ? 'Active' : 'Offline'}
+                              {isSensorOnline ? 'Online' : 'Offline'}
                             </span>
                           </div>
                         );
