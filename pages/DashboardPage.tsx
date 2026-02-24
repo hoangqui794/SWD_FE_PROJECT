@@ -3,13 +3,12 @@ import Layout from '../components/Layout';
 import { Link } from 'react-router-dom';
 import { getDashboardStats, DashboardStats } from '../services/dashboardService';
 import { hubService, Hub, HubEnvironmentSensor, HubHistoricalData } from '../services/hubService';
-import { signalRService } from '../services/signalrService';
 
 const DashboardPage: React.FC = () => {
   const [statsData, setStatsData] = useState<DashboardStats | null>(null);
   const [loading, setLoading] = useState<boolean>(false);
 
-  // Environmental Trends state (Realtime)
+  // Environmental Trends state (Current Data from API)
   const [hubs, setHubs] = useState<Hub[]>([]);
   const [selectedHubId, setSelectedHubId] = useState<number | null>(null);
   const [envSensors, setEnvSensors] = useState<HubEnvironmentSensor[]>([]);
@@ -56,14 +55,13 @@ const DashboardPage: React.FC = () => {
   const fetchHistory = useCallback(async (hubId: number, from: string, to: string) => {
     setHistoryLoading(true);
     try {
-      // Format as yyyy-MM-dd 00:00:00 for the backend if needed, 
-      // but usually the service will handle the string or we can refine it here
       const fromStr = `${from} 00:00:00`;
       const toStr = `${to} 23:59:59`;
       const data = await hubService.getReadings(hubId, fromStr, toStr);
       setHistoryData(data);
-      if (data.sensors.length > 0 && !selectedHistorySensorId) {
-        setSelectedHistorySensorId(data.sensors[0].sensorId);
+      // Tự động chọn sensor đầu tiên nếu chưa có cái nào được chọn
+      if (data.sensors.length > 0) {
+        setSelectedHistorySensorId(prev => prev || data.sensors[0].sensorId);
       }
     } catch (error) {
       console.error('Failed to fetch history', error);
@@ -71,7 +69,7 @@ const DashboardPage: React.FC = () => {
     } finally {
       setHistoryLoading(false);
     }
-  }, [selectedHistorySensorId]);
+  }, []); // Gỡ bỏ phụ thuộc vào selectedHistorySensorId để tránh loop
 
   useEffect(() => {
     fetchStats();
@@ -87,49 +85,15 @@ const DashboardPage: React.FC = () => {
       }
     };
     fetchHubs();
-    signalRService.startConnection();
   }, []);
 
+  // Tự động lấy dữ liệu môi trường và lịch sử khi Hub thay đổi hoặc Ngày thay đổi
   useEffect(() => {
-    if (!selectedHubId) return;
-    fetchCurrentTemperature(selectedHubId);
-    fetchHistory(selectedHubId, dateFrom, dateTo);
-
-    const joinGroup = async () => {
-      try {
-        await signalRService.invoke('JoinHubGroup', selectedHubId);
-      } catch (err) {
-        console.warn('Failed to join hub group:', err);
-      }
-    };
-    joinGroup();
-
-    const handleEnvData = (data: any) => {
-      if (data && data.data) {
-        setEnvSensors(data.data);
-        if (data.hubName) setEnvHubName(data.hubName);
-      }
-    };
-
-    const handleSensorData = (updatedSensor: any) => {
-      setEnvSensors(prev =>
-        prev.map(s =>
-          s.sensorId === updatedSensor.sensorId
-            ? { ...s, currentValue: updatedSensor.currentValue ?? updatedSensor.value ?? s.currentValue, lastUpdate: updatedSensor.lastUpdate ?? s.lastUpdate, status: updatedSensor.status ?? s.status }
-            : s
-        )
-      );
-    };
-
-    signalRService.on('ReceiveHubEnvironmentData', handleEnvData);
-    signalRService.on('ReceiveSensorData', handleSensorData);
-
-    return () => {
-      signalRService.invoke('LeaveHubGroup', selectedHubId).catch(() => { });
-      signalRService.off('ReceiveHubEnvironmentData', handleEnvData);
-      signalRService.off('ReceiveSensorData', handleSensorData);
-    };
-  }, [selectedHubId, fetchCurrentTemperature, fetchHistory, dateFrom, dateTo]);
+    if (selectedHubId) {
+      fetchCurrentTemperature(selectedHubId);
+      fetchHistory(selectedHubId, dateFrom, dateTo);
+    }
+  }, [selectedHubId, dateFrom, dateTo, fetchCurrentTemperature, fetchHistory]);
 
   const stats = [
     { label: "Total Sites", value: statsData?.total_sites.toString() || "0", icon: "store" },
@@ -146,24 +110,20 @@ const DashboardPage: React.FC = () => {
 
   const chartPaths = useMemo(() => {
     if (!selectedSensorHistory || selectedSensorHistory.readings.length < 2) return { line: "", area: "" };
-
-    const values = selectedSensorHistory.readings.map(r => r.value).reverse(); // API often returns newest first
+    const values = selectedSensorHistory.readings.map(r => r.value).reverse();
     const max = Math.max(...values, 1);
     const min = Math.min(...values, 0);
     const range = max - min || 1;
-
     const points = values.map((val, idx) => {
       const x = (idx / (values.length - 1)) * 100;
       const y = 40 - ((val - min) / range) * 30 - 5;
       return `${x},${y}`;
     });
-
     const line = `M${points[0]} ` + points.slice(1).map(p => `L${p}`).join(' ');
     const area = `${line} L100,40 L0,40 Z`;
     return { line, area };
   }, [selectedSensorHistory]);
 
-  // Helpers
   const getSensorIcon = (typeName: string) => {
     switch (typeName?.toLowerCase()) {
       case 'temperature': return 'thermostat';
@@ -196,10 +156,11 @@ const DashboardPage: React.FC = () => {
 
   return (
     <Layout title="Dashboard" breadcrumb="Environment Overview">
+      {/* Header Section */}
       <div className="flex justify-between items-end mb-8">
         <div>
           <h3 className="text-2xl font-bold tracking-tight">System Status</h3>
-          <p className="text-slate-500 text-sm mt-1">Real-time metrics from {statsData?.total_sites || 0} active locations.</p>
+          <p className="text-slate-500 text-sm mt-1">Global metrics from {statsData?.total_sites || 0} active locations.</p>
         </div>
         <button
           onClick={fetchStats}
@@ -209,7 +170,7 @@ const DashboardPage: React.FC = () => {
         </button>
       </div>
 
-      {/* Stats Cards */}
+      {/* Stats Cards Row */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-10">
         {stats.map((stat, idx) => (
           <div key={idx} className="p-6 rounded-xl border border-border-muted bg-white/5 flex flex-col justify-between h-32">
@@ -222,18 +183,18 @@ const DashboardPage: React.FC = () => {
         ))}
       </div>
 
-      {/* Realtime Trends Section */}
+      {/* Section 1: Current Readings (API Driven) */}
       <div className="mb-10">
         <div className="flex flex-col lg:flex-row lg:items-center justify-between mb-6 gap-4">
           <div>
-            <h4 className="text-lg font-bold">Real-time Environment</h4>
-            <p className="text-slate-500 text-xs mt-1">Monitoring <span className="text-white font-medium">{envHubName || 'Loading...'}</span></p>
+            <h4 className="text-lg font-bold">Current Environment</h4>
+            <p className="text-slate-500 text-xs mt-1">Readings for <span className="text-white font-medium">{envHubName || 'Selected Hub'}</span></p>
           </div>
           <div className="flex items-center gap-3 p-2 bg-white/5 rounded-lg border border-border-muted">
             <select
               value={selectedHubId ?? ''}
               onChange={(e) => setSelectedHubId(Number(e.target.value))}
-              className="bg-transparent border-none text-xs font-bold text-white focus:ring-0 cursor-pointer"
+              className="bg-transparent border-none text-xs font-bold text-white focus:ring-0 cursor-pointer outline-none"
             >
               {hubs.map(hub => (
                 <option key={hub.hubId} value={hub.hubId} className='text-black'>{hub.name}</option>
@@ -274,7 +235,7 @@ const DashboardPage: React.FC = () => {
                       <span className={`text-[10px] font-bold uppercase ${sensor.status.toLowerCase() === 'online' ? 'text-emerald-400' : 'text-red-400'}`}>{sensor.status}</span>
                     </div>
                     <div className="mb-3">
-                      <span className={`text-3xl font-bold ${color.text}`}>{sensor.currentValue.toFixed(1)}</span>
+                      <span className={`text-3xl font-bold ${color.text}`}>{typeof sensor.currentValue === 'number' ? sensor.currentValue.toFixed(1) : sensor.currentValue}</span>
                       <span className="text-lg text-slate-400 ml-1">{sensor.unit}</span>
                     </div>
                     <div className="flex items-center justify-between text-[10px] text-slate-500">
@@ -289,7 +250,7 @@ const DashboardPage: React.FC = () => {
         )}
       </div>
 
-      {/* Historical Data Section */}
+      {/* Section 2: Historical Readings (API Driven) */}
       <div className="mb-10">
         <div className="flex flex-col lg:flex-row lg:items-center justify-between mb-6 gap-4">
           <h4 className="text-lg font-bold">Historical Readings</h4>
@@ -300,7 +261,7 @@ const DashboardPage: React.FC = () => {
                 type="date"
                 value={dateFrom}
                 onChange={(e) => setDateFrom(e.target.value)}
-                className="bg-transparent border-none text-xs font-bold text-white focus:ring-0 cursor-pointer p-0"
+                className="bg-transparent border-none text-xs font-bold text-white focus:ring-0 cursor-pointer p-0 select-none"
               />
             </div>
             <span className="text-slate-600">|</span>
@@ -310,7 +271,7 @@ const DashboardPage: React.FC = () => {
                 type="date"
                 value={dateTo}
                 onChange={(e) => setDateTo(e.target.value)}
-                className="bg-transparent border-none text-xs font-bold text-white focus:ring-0 cursor-pointer p-0"
+                className="bg-transparent border-none text-xs font-bold text-white focus:ring-0 cursor-pointer p-0 select-none"
               />
             </div>
             <span className="text-slate-600">|</span>
@@ -324,7 +285,6 @@ const DashboardPage: React.FC = () => {
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-          {/* Sensor List for History */}
           <div className="lg:col-span-1 space-y-2">
             {historyData?.sensors.map(s => (
               <button
@@ -343,7 +303,6 @@ const DashboardPage: React.FC = () => {
             ))}
           </div>
 
-          {/* Chart Display */}
           <div className="lg:col-span-3 bg-white/5 rounded-xl border border-border-muted p-6 relative min-h-[300px]">
             {historyLoading ? (
               <div className="absolute inset-0 flex items-center justify-center">
@@ -382,7 +341,6 @@ const DashboardPage: React.FC = () => {
                   )}
                 </div>
 
-                {/* Latest Readings Table */}
                 <div className="mt-6">
                   <p className="text-[10px] font-bold text-slate-500 uppercase mb-3">Recent Logs</p>
                   <div className="max-h-40 overflow-y-auto custom-scrollbar">
@@ -414,7 +372,6 @@ const DashboardPage: React.FC = () => {
         </div>
       </div>
 
-      {/* Priority Alerts */}
       <div className="mb-4 flex items-center justify-between">
         <h4 className="text-lg font-bold">Priority Sensor Alerts</h4>
         <Link to="/alerts" className="text-primary text-xs font-bold hover:underline">View All History</Link>

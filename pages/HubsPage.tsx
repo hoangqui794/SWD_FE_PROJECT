@@ -36,22 +36,21 @@ const HubsPage: React.FC = () => {
 
     // Listen for realtime updates using the correct event names provided by the user
     const handleHubStatus = (data: any) => {
-      console.log("Realtime update received via [ReceiveHubStatus]:", data);
+      console.log("Realtime update received via [ReceiveHubStatusChange]:", data);
       fetchHubs(false); // Silent update
     };
 
     const handleSensorUpdate = (data: any) => {
-      console.log("Realtime update received via [ReceiveSensorUpdate]:", data);
-      // We might want to refresh hubs if sensor counts change, or update specific rows
+      console.log("Realtime update received via [ReceiveSensorStatusChange]:", data);
       fetchHubs(false); // Silent update
     };
 
-    signalRService.on("ReceiveHubStatus", handleHubStatus);
-    signalRService.on("ReceiveSensorUpdate", handleSensorUpdate);
+    signalRService.on("ReceiveHubStatusChange", handleHubStatus);
+    signalRService.on("ReceiveSensorStatusChange", handleSensorUpdate);
 
     return () => {
-      signalRService.off("ReceiveHubStatus", handleHubStatus);
-      signalRService.off("ReceiveSensorUpdate", handleSensorUpdate);
+      signalRService.off("ReceiveHubStatusChange", handleHubStatus);
+      signalRService.off("ReceiveSensorStatusChange", handleSensorUpdate);
     };
   }, []);
 
