@@ -88,4 +88,9 @@ export const hubService = {
         const response = await apiClient.get<HubEnvironmentResponse>(`/api/hubs/${hubId}/current-temperature`);
         return response.data;
     },
+
+    getCurrentEnvironment: async (hubId: number): Promise<HubHistoricalData> => {
+        const response = await apiClient.get<ApiResponse<HubHistoricalData>>(`/api/dashboard/hub/${hubId}/current-environment`);
+        return response.data.data;
+    },
 };

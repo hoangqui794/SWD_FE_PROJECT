@@ -2,7 +2,7 @@ import React, { useEffect, useState, useCallback, useMemo } from 'react';
 import Layout from '../components/Layout';
 import { Link } from 'react-router-dom';
 import { getDashboardStats, DashboardStats } from '../services/dashboardService';
-import { hubService, Hub, HubEnvironmentSensor, HubHistoricalData } from '../services/hubService';
+import { hubService, Hub, HubHistoricalData, HubSensorReadings } from '../services/hubService';
 
 const DashboardPage: React.FC = () => {
   const [statsData, setStatsData] = useState<DashboardStats | null>(null);
@@ -11,7 +11,7 @@ const DashboardPage: React.FC = () => {
   // Environmental Trends state (Current Data from API)
   const [hubs, setHubs] = useState<Hub[]>([]);
   const [selectedHubId, setSelectedHubId] = useState<number | null>(null);
-  const [envSensors, setEnvSensors] = useState<HubEnvironmentSensor[]>([]);
+  const [envSensors, setEnvSensors] = useState<HubSensorReadings[]>([]);
   const [envHubName, setEnvHubName] = useState<string>('');
   const [envLoading, setEnvLoading] = useState<boolean>(false);
 
@@ -41,11 +41,11 @@ const DashboardPage: React.FC = () => {
   const fetchCurrentTemperature = useCallback(async (hubId: number) => {
     setEnvLoading(true);
     try {
-      const data = await hubService.getCurrentTemperature(hubId);
-      setEnvSensors(data.data || []);
-      setEnvHubName(data.hubName || '');
+      const data = await hubService.getCurrentEnvironment(hubId);
+      setEnvSensors(data.sensors || []);
+      setEnvHubName(data.name || '');
     } catch (error) {
-      console.error('Failed to fetch current temperature', error);
+      console.error('Failed to fetch current environment', error);
       setEnvSensors([]);
     } finally {
       setEnvLoading(false);
@@ -101,6 +101,9 @@ const DashboardPage: React.FC = () => {
     { label: "Total Hubs", value: statsData?.total_hubs.toString() || "0", icon: "router", color: "text-primary" },
     { label: "Active Sensors", value: statsData?.active_sensors.toString() || "0", icon: "sensors" },
   ];
+
+  const selectedHub = useMemo(() => hubs.find(h => h.hubId === selectedHubId), [hubs, selectedHubId]);
+
 
   // History Chart Logic
   const selectedSensorHistory = useMemo(() => {
@@ -187,8 +190,18 @@ const DashboardPage: React.FC = () => {
       <div className="mb-10">
         <div className="flex flex-col lg:flex-row lg:items-center justify-between mb-6 gap-4">
           <div>
-            <h4 className="text-lg font-bold">Current Environment</h4>
-            <p className="text-slate-500 text-xs mt-1">Readings for <span className="text-white font-medium">{envHubName || 'Selected Hub'}</span></p>
+            <div className="flex items-center gap-3">
+              <h4 className="text-lg font-bold">Current Environment</h4>
+              {selectedHub && (
+                <div className={`flex items-center gap-1.5 px-2 py-0.5 rounded-full border ${selectedHub.isOnline ? 'border-emerald-500/20 bg-emerald-500/10' : 'border-red-500/20 bg-red-500/10'}`}>
+                  <div className={`w-1.5 h-1.5 rounded-full ${selectedHub.isOnline ? 'bg-emerald-500 animate-pulse' : 'bg-red-500'}`}></div>
+                  <span className={`text-[10px] font-bold uppercase ${selectedHub.isOnline ? 'text-emerald-500' : 'text-red-500'}`}>
+                    Hub {selectedHub.isOnline ? 'Online' : 'Offline'}
+                  </span>
+                </div>
+              )}
+            </div>
+            <p className="text-slate-500 text-xs mt-1">Latest readings from <span className="text-white font-medium">{envHubName || 'Selected Hub'}</span></p>
           </div>
           <div className="flex items-center gap-3 p-2 bg-white/5 rounded-lg border border-border-muted">
             <select
@@ -218,6 +231,8 @@ const DashboardPage: React.FC = () => {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             {envSensors.map(sensor => {
               const color = getSensorColor(sensor.typeName);
+              const latestReading = sensor.readings && sensor.readings.length > 0 ? sensor.readings[0] : null;
+
               return (
                 <div key={sensor.sensorId} className={`relative overflow-hidden rounded-xl border ${color.border} bg-white/5 p-6 hover:bg-white/[0.08] transition-all group`}>
                   <div className={`absolute inset-0 bg-gradient-to-br ${color.gradient} opacity-50`}></div>
@@ -229,18 +244,34 @@ const DashboardPage: React.FC = () => {
                         </div>
                         <div>
                           <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{sensor.typeName}</p>
-                          <p className="text-xs text-slate-300 mt-0.5">{sensor.sensorName}</p>
+                          <p className="text-xs text-slate-300 mt-0.5">{sensor.name}</p>
                         </div>
                       </div>
-                      <span className={`text-[10px] font-bold uppercase ${sensor.status.toLowerCase() === 'online' ? 'text-emerald-400' : 'text-red-400'}`}>{sensor.status}</span>
+                      {/* Sensor Status Dot */}
+                      {(() => {
+                        const latestReading = sensor.readings && sensor.readings.length > 0 ? sensor.readings[0] : null;
+                        const isRecent = latestReading && (Date.now() - new Date(latestReading.recordedAt).getTime() < 300000);
+                        const isSensorOnline = selectedHub?.isOnline && isRecent;
+
+                        return (
+                          <div className="flex items-center gap-1.5">
+                            <div className={`w-1.5 h-1.5 rounded-full ${isSensorOnline ? 'bg-emerald-500 animate-pulse' : 'bg-slate-500'}`}></div>
+                            <span className={`text-[10px] font-bold uppercase ${isSensorOnline ? 'text-emerald-500' : 'text-slate-500'}`}>
+                              {isSensorOnline ? 'Active' : 'Offline'}
+                            </span>
+                          </div>
+                        );
+                      })()}
                     </div>
                     <div className="mb-3">
-                      <span className={`text-3xl font-bold ${color.text}`}>{typeof sensor.currentValue === 'number' ? sensor.currentValue.toFixed(1) : sensor.currentValue}</span>
+                      <span className={`text-3xl font-bold ${color.text}`}>
+                        {latestReading ? latestReading.value.toFixed(1) : '--'}
+                      </span>
                       <span className="text-lg text-slate-400 ml-1">{sensor.unit}</span>
                     </div>
                     <div className="flex items-center justify-between text-[10px] text-slate-500">
                       <span>Last Update</span>
-                      <span>{formatLastUpdate(sensor.lastUpdate)}</span>
+                      <span>{latestReading ? formatLastUpdate(latestReading.recordedAt) : 'N/A'}</span>
                     </div>
                   </div>
                 </div>
