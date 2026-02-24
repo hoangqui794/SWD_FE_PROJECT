@@ -11,12 +11,14 @@ import UsersPage from './pages/UsersPage';
 import OrganizationsPage from './pages/OrganizationsPage';
 import { AuthProvider } from './context/AuthContext';
 import { NotificationProvider } from './context/NotificationContext';
+import RealtimeNotificationListener from './components/RealtimeNotificationListener';
 import ProtectedRoute from './components/ProtectedRoute';
 
 const App: React.FC = () => {
   return (
     <AuthProvider>
       <NotificationProvider>
+        <RealtimeNotificationListener />
         <HashRouter>
           <Routes>
             {/* Public Routes */}

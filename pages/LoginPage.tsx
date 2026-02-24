@@ -9,8 +9,8 @@ const LoginPage: React.FC = () => {
   const navigate = useNavigate();
   const { login } = useAuth();
 
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState(''); // Kept for UI but not used in current login flow
+  const [email, setEmail] = useState('admin@example.com');
+  const [password, setPassword] = useState('111');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
 

@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useCallback, useMemo } from 'react';
 import Layout from '../components/Layout';
 import { Link } from 'react-router-dom';
-import { getDashboardStats, DashboardStats } from '../services/dashboardService';
+import { getDashboardStats, getRecentAlerts, DashboardStats } from '../services/dashboardService';
 import { hubService, Hub, HubHistoricalData, HubSensorReadings } from '../services/hubService';
 
 const DashboardPage: React.FC = () => {
@@ -14,6 +14,10 @@ const DashboardPage: React.FC = () => {
   const [envSensors, setEnvSensors] = useState<HubSensorReadings[]>([]);
   const [envHubName, setEnvHubName] = useState<string>('');
   const [envLoading, setEnvLoading] = useState<boolean>(false);
+
+  // Recent Alerts state
+  const [recentAlerts, setRecentAlerts] = useState<any[]>([]);
+  const [alertsLoading, setAlertsLoading] = useState<boolean>(false);
 
   // History state
   const [historyData, setHistoryData] = useState<HubHistoricalData | null>(null);
@@ -28,13 +32,19 @@ const DashboardPage: React.FC = () => {
 
   const fetchStats = async () => {
     setLoading(true);
+    setAlertsLoading(true);
     try {
-      const data = await getDashboardStats();
-      setStatsData(data);
+      const [stats, alerts] = await Promise.all([
+        getDashboardStats(),
+        getRecentAlerts(5)
+      ]);
+      setStatsData(stats);
+      setRecentAlerts(alerts);
     } catch (error) {
-      console.error('Failed to fetch dashboard stats', error);
+      console.error('Failed to fetch dashboard data', error);
     } finally {
       setLoading(false);
+      setAlertsLoading(false);
     }
   };
 
@@ -97,9 +107,9 @@ const DashboardPage: React.FC = () => {
 
   const stats = [
     { label: "Total Sites", value: statsData?.total_sites.toString() || "0", icon: "store" },
-    { label: "Pending Alerts", value: statsData?.pending_alerts.toString() || "0", icon: "warning", color: statsData?.pending_alerts ? "text-red-500" : "text-white" },
-    { label: "Total Hubs", value: statsData?.total_hubs.toString() || "0", icon: "router", color: "text-primary" },
-    { label: "Active Sensors", value: statsData?.active_sensors.toString() || "0", icon: "sensors" },
+    { label: "Alerts Active", value: statsData?.pending_alerts.toString() || "0", icon: "warning", color: statsData?.pending_alerts ? "text-red-500" : "text-white" },
+    { label: "Hubs Online", value: `${statsData?.online_hubs || 0} / ${statsData?.total_hubs || 0}`, icon: "router", color: "text-primary" },
+    { label: "Total Sensors", value: statsData?.total_sensors.toString() || "0", icon: "sensors" },
   ];
 
   const selectedHub = useMemo(() => hubs.find(h => h.hubId === selectedHubId), [hubs, selectedHubId]);
@@ -418,20 +428,34 @@ const DashboardPage: React.FC = () => {
             </tr>
           </thead>
           <tbody className="divide-y divide-border-muted">
-            <tr className="hover:bg-white/5 transition-colors">
-              <td className="px-6 py-4">
-                <div className="font-medium text-sm">Storage Temp (Critical)</div>
-                <div className="text-[10px] text-slate-500">Backroom / Medicine</div>
-              </td>
-              <td className="px-6 py-4 text-center font-bold text-red-500">42.8 °C</td>
-              <td className="px-6 py-4">
-                <div className="flex items-center gap-2">
-                  <div className="w-2 h-2 rounded-full bg-red-500 animate-ping"></div>
-                  <span className="text-xs font-medium text-red-500 uppercase">Critical</span>
-                </div>
-              </td>
-              <td className="px-6 py-4 text-right text-xs text-slate-500">Just now</td>
-            </tr>
+            {alertsLoading ? (
+              <tr><td colSpan={4} className="px-6 py-8 text-center text-slate-500">Loading alerts...</td></tr>
+            ) : recentAlerts.length > 0 ? (
+              recentAlerts.map((alert) => (
+                <tr key={alert.id} className="hover:bg-white/5 transition-colors">
+                  <td className="px-6 py-4">
+                    <div className="font-medium text-sm">{alert.sensorName} ({alert.severity})</div>
+                    <div className="text-[10px] text-slate-500">{alert.location}</div>
+                  </td>
+                  <td className="px-6 py-4 text-center font-bold text-red-500">
+                    {alert.value} {alert.metricUnit}
+                  </td>
+                  <td className="px-6 py-4">
+                    <div className="flex items-center gap-2">
+                      <div className={`w-2 h-2 rounded-full ${alert.severity === 'Critical' ? 'bg-red-500 animate-ping' : 'bg-amber-500'}`}></div>
+                      <span className={`text-xs font-medium uppercase ${alert.severity === 'Critical' ? 'text-red-500' : 'text-amber-500'}`}>
+                        {alert.severity}
+                      </span>
+                    </div>
+                  </td>
+                  <td className="px-6 py-4 text-right text-xs text-slate-500">
+                    {formatLastUpdate(alert.time)}
+                  </td>
+                </tr>
+              ))
+            ) : (
+              <tr><td colSpan={4} className="px-6 py-8 text-center text-slate-500 italic">No recent alerts found.</td></tr>
+            )}
           </tbody>
         </table>
       </div>
