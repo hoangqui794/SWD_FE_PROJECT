@@ -23,7 +23,7 @@ const SensorsPage: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [filterTypeId, setFilterTypeId] = useState<number | undefined>();
   const [filterHubId, setFilterHubId] = useState<number | undefined>();
-  const [connectionStatus, setConnectionStatus] = useState<string>("Disconnected");
+
 
   // Form state cho tạo sensor mới
   const [formData, setFormData] = useState<CreateSensorRequest>({
@@ -50,15 +50,11 @@ const SensorsPage: React.FC = () => {
 
     signalRService.on("ReceiveSensorUpdate", handleSensorUpdate);
 
-    // Status listener
-    const handleStatusChange = (status: string) => {
-      setConnectionStatus(status);
-    };
-    signalRService.addConnectionStateListener(handleStatusChange);
+
 
     return () => {
       signalRService.off("ReceiveSensorUpdate", handleSensorUpdate);
-      signalRService.removeConnectionStateListener(handleStatusChange);
+
     };
   }, []);
 
@@ -176,15 +172,7 @@ const SensorsPage: React.FC = () => {
     <Layout title="Sensors Management" breadcrumb="Environment Overview">
       <div className="flex justify-between items-end mb-8">
         <div>
-          <div className="flex items-center gap-3">
-            <h3 className="text-2xl font-bold tracking-tight">IoT Sensors Management</h3>
-            <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase border ${connectionStatus === 'Connected' ? 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20' :
-              connectionStatus === 'Connecting...' || connectionStatus === 'Reconnecting' ? 'bg-yellow-500/10 text-yellow-500 border-yellow-500/20' :
-                'bg-red-500/10 text-red-500 border-red-500/20'
-              }`}>
-              {connectionStatus === 'Connected' ? '● Live' : `○ ${connectionStatus}`}
-            </span>
-          </div>
+          <h3 className="text-2xl font-bold tracking-tight">IoT Sensors Management</h3>
           <p className="text-slate-500 text-sm mt-1">Inventory and real-time status of environmental sensors.</p>
         </div>
         {canManage && (

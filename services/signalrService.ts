@@ -72,6 +72,14 @@ class SignalRService {
     public off(methodName: string, callback: (...args: any[]) => void) {
         this.connection.off(methodName, callback);
     }
+
+    public async invoke(methodName: string, ...args: any[]) {
+        if (this.connection.state === signalR.HubConnectionState.Connected) {
+            await this.connection.invoke(methodName, ...args);
+        } else {
+            console.warn(`SignalR: Cannot invoke "${methodName}" - not connected (state: ${this.connection.state})`);
+        }
+    }
 }
 
 export const signalRService = new SignalRService();
