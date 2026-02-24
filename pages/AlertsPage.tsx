@@ -68,9 +68,11 @@ const AlertsPage: React.FC = () => {
 
 
     const getSeverityStyle = (severity: string) => {
-        return severity === 'Critical'
-            ? 'bg-red-500/10 border-red-500 text-red-500'
-            : 'bg-amber-500/10 border-amber-500 text-amber-500';
+        const s = (severity || '').toLowerCase();
+        if (s === 'high' || s === 'critical') return 'bg-red-500/10 border-red-500 text-red-500';
+        if (s === 'medium' || s === 'warning') return 'bg-yellow-500/10 border-yellow-500 text-yellow-500';
+        if (s === 'low' || s === 'info') return 'bg-blue-500/10 border-blue-500 text-blue-500';
+        return 'bg-slate-500/10 border-slate-500 text-slate-500';
     };
 
     // --- API Calls ---
@@ -546,8 +548,9 @@ const AlertsPage: React.FC = () => {
                                     value={ruleFormData.priority}
                                     onChange={e => setRuleFormData({ ...ruleFormData, priority: e.target.value })}
                                 >
-                                    <option value="Warning" className="bg-zinc-800">Warning</option>
-                                    <option value="Critical" className="bg-zinc-800">Critical</option>
+                                    <option value="High" className="bg-zinc-800">High</option>
+                                    <option value="Medium" className="bg-zinc-800">Medium</option>
+                                    <option value="Low" className="bg-zinc-800">Low</option>
                                 </select>
                                 <span className="material-symbols-outlined absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none text-lg">expand_more</span>
                             </div>

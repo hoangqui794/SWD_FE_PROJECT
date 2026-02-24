@@ -446,13 +446,22 @@ const DashboardPage: React.FC = () => {
                     <div className="font-medium text-sm">{alert.sensorName} ({alert.severity})</div>
                     <div className="text-[10px] text-slate-500">{alert.location}</div>
                   </td>
-                  <td className="px-6 py-4 text-center font-bold text-red-500">
-                    {alert.value} {alert.metricUnit}
+                  <td className={`px-6 py-4 text-center font-bold ${alert.severity?.toLowerCase() === 'high' ? 'text-red-500' :
+                      alert.severity?.toLowerCase() === 'medium' ? 'text-yellow-500' :
+                        'text-blue-500'
+                    }`}>
+                    {typeof alert.value === 'number' ? alert.value.toFixed(1) : alert.value} {alert.metricUnit}
                   </td>
                   <td className="px-6 py-4">
                     <div className="flex items-center gap-2">
-                      <div className={`w-2 h-2 rounded-full ${alert.severity === 'Critical' ? 'bg-red-500 animate-ping' : 'bg-amber-500'}`}></div>
-                      <span className={`text-xs font-medium uppercase ${alert.severity === 'Critical' ? 'text-red-500' : 'text-amber-500'}`}>
+                      <div className={`w-2 h-2 rounded-full ${alert.severity?.toLowerCase() === 'high' ? 'bg-red-500 animate-ping' :
+                          alert.severity?.toLowerCase() === 'medium' ? 'bg-yellow-500' :
+                            'bg-blue-500'
+                        }`}></div>
+                      <span className={`text-xs font-medium uppercase ${alert.severity?.toLowerCase() === 'high' ? 'text-red-500' :
+                          alert.severity?.toLowerCase() === 'medium' ? 'text-yellow-500' :
+                            'text-blue-500'
+                        }`}>
                         {alert.severity}
                       </span>
                     </div>
