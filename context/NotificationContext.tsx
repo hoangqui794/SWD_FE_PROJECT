@@ -41,28 +41,41 @@ export const NotificationProvider: React.FC<NotificationProviderProps> = ({ chil
         setNotification({ message, type });
     };
 
+    console.log("Rendering NotificationProvider, current notification:", notification);
+
     return (
         <NotificationContext.Provider value={{ showNotification }}>
             {children}
             {notification && (
-                <div className={`fixed top-20 right-4 z-[9999] flex items-center gap-3 px-4 py-3 rounded shadow-2xl border transition-all duration-300 animate-in fade-in slide-in-from-right-5 ${notification.type === 'success' ? 'bg-zinc-900 border-green-500 text-green-500' :
-                        notification.type === 'error' ? 'bg-zinc-900 border-red-500 text-red-500' :
-                            notification.type === 'warning' ? 'bg-zinc-900 border-yellow-500 text-yellow-500' :
-                                'bg-zinc-900 border-blue-500 text-blue-500'
-                    }`}>
-                    <span className="material-symbols-outlined text-lg">
-                        {notification.type === 'success' ? 'check_circle' :
-                            notification.type === 'error' ? 'error' :
-                                notification.type === 'warning' ? 'warning' : 'info'}
-                    </span>
-                    <div>
-                        <h4 className="font-bold uppercase text-[10px] tracking-wider">
-                            {notification.type.charAt(0).toUpperCase() + notification.type.slice(1)}
+                <div
+                    style={{
+                        position: 'fixed',
+                        bottom: '40px',
+                        right: '40px',
+                        zIndex: 999999,
+                        minWidth: '320px'
+                    }}
+                    className={`flex items-center gap-4 px-6 py-4 rounded-xl shadow-2xl border-4 ${notification.type === 'success' ? 'bg-black border-green-500 text-green-500' :
+                        notification.type === 'error' ? 'bg-black border-red-500 text-red-500' :
+                            notification.type === 'warning' ? 'bg-black border-yellow-500 text-yellow-500' :
+                                'bg-black border-blue-500 text-blue-500'
+                        }`}
+                >
+                    <div className="flex-1">
+                        <h4 className="font-black uppercase text-xs tracking-[0.2em] mb-1">
+                            {notification.type === 'error' ? '🚨 CRITICAL' :
+                                notification.type === 'warning' ? '⚠️ WARNING' : 'ℹ️ INFO'}
                         </h4>
-                        <p className="text-xs text-white/90 mt-0.5">{notification.message}</p>
+                        <p className="text-sm text-white font-bold">{notification.message}</p>
                     </div>
-                    <button onClick={() => setNotification(null)} className="ml-2 hover:bg-white/10 rounded p-1">
-                        <span className="material-symbols-outlined text-sm">close</span>
+                    <button
+                        onClick={() => {
+                            console.log("Closing notification manually");
+                            setNotification(null);
+                        }}
+                        className="bg-white/10 hover:bg-white/20 rounded-full p-2"
+                    >
+                        <span className="material-symbols-outlined text-lg text-white">close</span>
                     </button>
                 </div>
             )}
