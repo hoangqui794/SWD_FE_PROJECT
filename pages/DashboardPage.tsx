@@ -33,17 +33,26 @@ const DashboardPage: React.FC = () => {
   const fetchStats = async () => {
     setLoading(true);
     setAlertsLoading(true);
+
+    // Fetch stats separately
     try {
-      const [stats, alerts] = await Promise.all([
-        getDashboardStats(),
-        getRecentAlerts(5)
-      ]);
+      const stats = await getDashboardStats();
+      console.log("Stats loaded:", stats);
       setStatsData(stats);
-      setRecentAlerts(alerts);
     } catch (error) {
-      console.error('Failed to fetch dashboard data', error);
+      console.error('Failed to fetch dashboard stats', error);
     } finally {
       setLoading(false);
+    }
+
+    // Fetch alerts separately
+    try {
+      const alerts = await getRecentAlerts(5);
+      setRecentAlerts(alerts);
+    } catch (error) {
+      console.warn('Recent alerts API not available yet');
+      setRecentAlerts([]);
+    } finally {
       setAlertsLoading(false);
     }
   };
@@ -106,10 +115,10 @@ const DashboardPage: React.FC = () => {
   }, [selectedHubId, dateFrom, dateTo, fetchCurrentTemperature, fetchHistory]);
 
   const stats = [
-    { label: "Total Sites", value: statsData?.total_sites.toString() || "0", icon: "store" },
-    { label: "Alerts Active", value: statsData?.pending_alerts.toString() || "0", icon: "warning", color: statsData?.pending_alerts ? "text-red-500" : "text-white" },
-    { label: "Hubs Online", value: `${statsData?.online_hubs || 0} / ${statsData?.total_hubs || 0}`, icon: "router", color: "text-primary" },
-    { label: "Total Sensors", value: statsData?.total_sensors.toString() || "0", icon: "sensors" },
+    { label: "Total Sites", value: statsData?.total_sites?.toString() || "0", icon: "store" },
+    { label: "Alerts Active", value: statsData?.pending_alerts?.toString() || "0", icon: "warning", color: statsData?.pending_alerts ? "text-red-500" : "text-white" },
+    { label: "Total Hubs", value: statsData?.total_hubs?.toString() || "0", icon: "router", color: "text-primary" },
+    { label: "Active Sensors", value: statsData?.active_sensors?.toString() || "0", icon: "sensors" },
   ];
 
   const selectedHub = useMemo(() => hubs.find(h => h.hubId === selectedHubId), [hubs, selectedHubId]);

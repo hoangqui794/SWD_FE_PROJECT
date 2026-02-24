@@ -5,8 +5,6 @@ export interface DashboardStats {
     message: string;
     total_sites: number;
     total_hubs: number;
-    online_hubs: number;
-    total_sensors: number;
     active_sensors: number;
     pending_alerts: number;
 }
