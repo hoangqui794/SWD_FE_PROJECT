@@ -3,6 +3,7 @@ import Layout from '../components/Layout';
 import { Link } from 'react-router-dom';
 import { getDashboardStats, getRecentAlerts, DashboardStats } from '../services/dashboardService';
 import { hubService, Hub, HubHistoricalData, HubSensorReadings } from '../services/hubService';
+import { signalRService } from '../services/signalrService';
 
 const DashboardPage: React.FC = () => {
   const [statsData, setStatsData] = useState<DashboardStats | null>(null);
@@ -104,6 +105,22 @@ const DashboardPage: React.FC = () => {
       }
     };
     fetchHubs();
+  }, []);
+
+  // Lắng nghe SignalR để cập nhật bảng Alert và Stats ngay lập tức
+  useEffect(() => {
+    const handleRealtimeUpdate = () => {
+      console.log("Dashboard: SignalR alert received, updating data...");
+      fetchStats(); // Hàm này cập nhật cả Stats và Recent Alerts
+    };
+
+    signalRService.on("ReceiveAlertNotification", handleRealtimeUpdate);
+    signalRService.on("receivealertnotification", handleRealtimeUpdate);
+
+    return () => {
+      signalRService.off("ReceiveAlertNotification", handleRealtimeUpdate);
+      signalRService.off("receivealertnotification", handleRealtimeUpdate);
+    };
   }, []);
 
   // Tự động lấy dữ liệu môi trường và lịch sử khi Hub thay đổi hoặc Ngày thay đổi
@@ -447,20 +464,20 @@ const DashboardPage: React.FC = () => {
                     <div className="text-[10px] text-slate-500">{alert.location}</div>
                   </td>
                   <td className={`px-6 py-4 text-center font-bold ${alert.severity?.toLowerCase() === 'high' ? 'text-red-500' :
-                      alert.severity?.toLowerCase() === 'medium' ? 'text-yellow-500' :
-                        'text-blue-500'
+                    alert.severity?.toLowerCase() === 'medium' ? 'text-yellow-500' :
+                      'text-blue-500'
                     }`}>
                     {typeof alert.value === 'number' ? alert.value.toFixed(1) : alert.value} {alert.metricUnit}
                   </td>
                   <td className="px-6 py-4">
                     <div className="flex items-center gap-2">
                       <div className={`w-2 h-2 rounded-full ${alert.severity?.toLowerCase() === 'high' ? 'bg-red-500 animate-ping' :
-                          alert.severity?.toLowerCase() === 'medium' ? 'bg-yellow-500' :
-                            'bg-blue-500'
+                        alert.severity?.toLowerCase() === 'medium' ? 'bg-yellow-500' :
+                          'bg-blue-500'
                         }`}></div>
                       <span className={`text-xs font-medium uppercase ${alert.severity?.toLowerCase() === 'high' ? 'text-red-500' :
-                          alert.severity?.toLowerCase() === 'medium' ? 'text-yellow-500' :
-                            'text-blue-500'
+                        alert.severity?.toLowerCase() === 'medium' ? 'text-yellow-500' :
+                          'text-blue-500'
                         }`}>
                         {alert.severity}
                       </span>
