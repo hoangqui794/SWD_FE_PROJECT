@@ -52,8 +52,8 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
     `}>
       <div className={`p-6 flex items-center ${isExpanded ? 'justify-between' : 'justify-center'}`}>
         <div className="flex items-center gap-3">
-          <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center min-w-[2rem]">
-            <span className="material-symbols-outlined text-white text-xl font-bold">dataset</span>
+          <div className="w-8 h-8 min-w-[2rem]">
+            <img src="/favicon.svg" alt="Project Logo" className="w-full h-full object-contain" />
           </div>
           {isExpanded && (
             <div className="transition-opacity duration-300 animate-in fade-in">

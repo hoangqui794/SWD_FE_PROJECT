@@ -44,8 +44,8 @@ const LoginPage: React.FC = () => {
     <div className="relative flex w-full flex-col items-center justify-center p-4 sm:p-6 lg:p-8 min-h-screen bg-background-light dark:bg-background-dark">
       <div className="flex flex-col w-full max-w-[520px] bg-white dark:bg-black border border-black dark:border-white shadow-none overflow-hidden my-auto">
         <div className="flex flex-col items-center pt-12 pb-2 px-8">
-          <div className="h-16 w-16 bg-black dark:bg-white text-white dark:text-black flex items-center justify-center mb-6">
-            <span className="material-symbols-outlined text-4xl">hub</span>
+          <div className="h-16 w-16 mb-6">
+            <img src="/favicon.svg" alt="Project Logo" className="w-full h-full object-contain" />
           </div>
           <h2 className="text-slate-900 dark:text-white tracking-tight text-2xl font-bold leading-tight text-center uppercase">IoT Smart Environmental Monitor</h2>
           <p className="text-slate-500 dark:text-slate-400 text-sm font-normal text-center mt-3">Welcome back, please login to your account.</p>

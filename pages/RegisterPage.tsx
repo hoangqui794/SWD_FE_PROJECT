@@ -54,8 +54,8 @@ const RegisterPage: React.FC = () => {
       <div className="hidden lg:flex lg:w-1/2 relative bg-black items-center justify-center overflow-hidden border-r border-zinc-800">
         <div className="absolute inset-0 opacity-20" style={{ backgroundImage: "radial-gradient(#ffffff 1px, transparent 1px)", backgroundSize: "32px 32px" }}></div>
         <div className="relative z-10 px-12 max-w-xl text-white">
-          <div className="mb-8 w-16 h-16 bg-white/10 rounded-xl flex items-center justify-center backdrop-blur-sm border border-white/20">
-            <span className="material-symbols-outlined text-4xl">eco</span>
+          <div className="mb-8 w-16 h-16">
+            <img src="/favicon.svg" alt="Project Logo" className="w-full h-full object-contain" />
           </div>
           <h1 className="text-5xl font-bold mb-6 leading-tight tracking-tight">
             Smart Environmental <span className="text-zinc-400">Monitoring Solution</span>
