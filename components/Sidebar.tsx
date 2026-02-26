@@ -45,10 +45,10 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
       className={`
-      fixed inset-y-0 left-0 z-50 border-r border-border-muted flex flex-col h-screen bg-background-light dark:bg-background-dark transition-all duration-300 ease-in-out
+      fixed inset-y-0 left-0 z-50 border-r border-slate-200 dark:border-border-muted flex flex-col h-screen bg-white dark:bg-background-dark transition-all duration-300 ease-in-out
       md:translate-x-0
       ${isOpen ? 'translate-x-0' : '-translate-x-full'}
-      ${isExpanded ? 'w-64 shadow-2xl' : 'w-20'}
+      ${isExpanded ? 'w-64 shadow-xl' : 'w-20'}
     `}>
       <div className={`p-6 flex items-center ${isExpanded ? 'justify-between' : 'justify-center'}`}>
         <div className="flex items-center gap-3">
@@ -57,14 +57,14 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
           </div>
           {isExpanded && (
             <div className="transition-opacity duration-300 animate-in fade-in">
-              <h1 className="text-sm font-bold tracking-tight uppercase leading-none">Smart Store</h1>
+              <h1 className="text-sm font-bold tracking-tight uppercase leading-none text-slate-900 dark:text-white">Smart Store</h1>
               <p className="text-[10px] text-slate-500 dark:text-slate-400 font-medium tracking-tighter">ENVIRONMENTAL</p>
             </div>
           )}
         </div>
 
         {/* Mobile close button */}
-        <button onClick={onClose} className={`md:hidden text-slate-400 hover:text-white ${!isOpen && 'hidden'}`}>
+        <button onClick={onClose} className={`md:hidden text-slate-400 hover:text-slate-600 dark:hover:text-white ${!isOpen && 'hidden'}`}>
           <span className="material-symbols-outlined">close</span>
         </button>
       </div>
@@ -104,11 +104,11 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
         )}
       </nav>
 
-      <div className="p-4 border-t border-border-muted relative overflow-hidden">
+      <div className="p-4 border-t border-slate-200 dark:border-border-muted relative overflow-hidden">
         {isExpanded && (
           <div className="px-4 py-2 mb-2 whitespace-nowrap transition-opacity duration-300 animate-in fade-in">
             <p className="text-xs text-slate-500">Logged in as:</p>
-            <p className="text-sm font-bold truncate">{user?.email}</p>
+            <p className="text-sm font-bold truncate text-slate-900 dark:text-white">{user?.email}</p>
             <p className="text-[10px] uppercase font-bold text-primary">{user?.role}</p>
           </div>
         )}

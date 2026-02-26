@@ -4,6 +4,7 @@ import { useAuth } from '../context/AuthContext';
 import { Role } from '../types/auth';
 
 import { authService } from '../services/authService';
+import ThemeToggle from '../components/ThemeToggle';
 
 const LoginPage: React.FC = () => {
   const navigate = useNavigate();
@@ -41,8 +42,12 @@ const LoginPage: React.FC = () => {
   };
 
   return (
-    <div className="relative flex w-full flex-col items-center justify-center p-4 sm:p-6 lg:p-8 min-h-screen bg-background-light dark:bg-background-dark">
-      <div className="flex flex-col w-full max-w-[520px] bg-white dark:bg-black border border-black dark:border-white shadow-none overflow-hidden my-auto">
+    <div className="relative flex w-full flex-col items-center justify-center p-4 sm:p-6 lg:p-8 min-h-screen bg-slate-50 dark:bg-background-dark transition-colors duration-300">
+      <div className="absolute top-8 right-8">
+        <ThemeToggle />
+      </div>
+
+      <div className="flex flex-col w-full max-w-[520px] bg-white dark:bg-black border border-slate-200 dark:border-white shadow-xl shadow-slate-200/50 dark:shadow-none overflow-hidden my-auto transition-all">
         <div className="flex flex-col items-center pt-12 pb-2 px-8">
           <div className="h-16 w-16 mb-6">
             <img src="/favicon.svg" alt="Project Logo" className="w-full h-full object-contain" />
@@ -61,7 +66,7 @@ const LoginPage: React.FC = () => {
             <div className="relative flex items-center">
               <span className="material-symbols-outlined absolute left-4 text-slate-400">mail</span>
               <input
-                className="form-input flex w-full border-2 border-slate-200 dark:border-slate-800 bg-transparent text-slate-900 dark:text-white focus:outline-0 focus:ring-0 focus:border-primary h-12 pl-12 pr-4 placeholder:text-slate-400 text-base"
+                className="form-input flex w-full border-2 border-slate-100 dark:border-slate-800 bg-transparent text-slate-900 dark:text-white focus:outline-0 focus:ring-0 focus:border-primary h-12 pl-12 pr-4 placeholder:text-slate-400 text-base transition-colors"
                 placeholder="user@iot-admin.com"
                 type="email"
                 required
@@ -75,7 +80,7 @@ const LoginPage: React.FC = () => {
             <div className="relative flex items-center">
               <span className="material-symbols-outlined absolute left-4 text-slate-400">lock</span>
               <input
-                className="form-input flex w-full border-2 border-slate-200 dark:border-slate-800 bg-transparent text-slate-900 dark:text-white focus:outline-0 focus:ring-0 focus:border-primary h-12 pl-12 pr-12 placeholder:text-slate-400 text-base"
+                className="form-input flex w-full border-2 border-slate-100 dark:border-slate-800 bg-transparent text-slate-900 dark:text-white focus:outline-0 focus:ring-0 focus:border-primary h-12 pl-12 pr-12 placeholder:text-slate-400 text-base transition-colors"
                 placeholder="••••••••"
                 type="password"
                 required
@@ -89,13 +94,13 @@ const LoginPage: React.FC = () => {
             <button
               type="submit"
               disabled={isLoading}
-              className="flex w-full items-center justify-center h-12 px-5 bg-black dark:bg-white text-white dark:text-black text-sm font-bold uppercase tracking-widest transition-colors hover:bg-slate-800 dark:hover:bg-slate-200 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="flex w-full items-center justify-center h-12 px-5 bg-slate-900 dark:bg-white text-white dark:text-black text-sm font-bold uppercase tracking-widest transition-all hover:bg-black dark:hover:bg-slate-200 disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-slate-900/10 dark:shadow-none"
             >
               {isLoading ? 'Logging in...' : 'Login'}
             </button>
             <div className="flex items-center justify-center gap-2">
               <p className="text-slate-500 dark:text-slate-400 text-sm">Don't have an account?</p>
-              <Link to="/register" className="text-black dark:text-white hover:underline text-sm font-bold uppercase tracking-wide">Register</Link>
+              <Link to="/register" className="text-primary hover:underline text-sm font-bold uppercase tracking-wide">Register</Link>
             </div>
           </div>
         </form>

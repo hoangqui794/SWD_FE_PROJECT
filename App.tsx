@@ -11,44 +11,47 @@ import UsersPage from './pages/UsersPage';
 import OrganizationsPage from './pages/OrganizationsPage';
 import { AuthProvider } from './context/AuthContext';
 import { NotificationProvider } from './context/NotificationContext';
+import { ThemeProvider } from './context/ThemeContext';
 import RealtimeNotificationListener from './components/RealtimeNotificationListener';
 import ProtectedRoute from './components/ProtectedRoute';
 
 const App: React.FC = () => {
   return (
-    <AuthProvider>
-      <NotificationProvider>
-        <RealtimeNotificationListener />
-        <HashRouter>
-          <Routes>
-            {/* Public Routes */}
-            <Route path="/" element={<LoginPage />} />
-            <Route path="/register" element={<RegisterPage />} />
+    <ThemeProvider>
+      <AuthProvider>
+        <NotificationProvider>
+          <RealtimeNotificationListener />
+          <HashRouter>
+            <Routes>
+              {/* Public Routes */}
+              <Route path="/" element={<LoginPage />} />
+              <Route path="/register" element={<RegisterPage />} />
 
-            {/* Protected Routes - Accessible by all authenticated users */}
-            <Route element={<ProtectedRoute />}>
-              <Route path="/dashboard" element={<DashboardPage />} />
-            </Route>
+              {/* Protected Routes - Accessible by all authenticated users */}
+              <Route element={<ProtectedRoute />}>
+                <Route path="/dashboard" element={<DashboardPage />} />
+              </Route>
 
-            {/* Role Protected Routes */}
-            <Route element={<ProtectedRoute allowedRoles={['ADMIN', 'MANAGER', 'STAFF']} />}>
-              <Route path="/sites" element={<SitesPage />} />
-              <Route path="/hubs" element={<HubsPage />} />
-              <Route path="/sensors" element={<SensorsPage />} />
-              <Route path="/alerts" element={<AlertsPage />} />
-            </Route>
+              {/* Role Protected Routes */}
+              <Route element={<ProtectedRoute allowedRoles={['ADMIN', 'MANAGER', 'STAFF']} />}>
+                <Route path="/sites" element={<SitesPage />} />
+                <Route path="/hubs" element={<HubsPage />} />
+                <Route path="/sensors" element={<SensorsPage />} />
+                <Route path="/alerts" element={<AlertsPage />} />
+              </Route>
 
-            <Route element={<ProtectedRoute allowedRoles={['ADMIN']} />}>
-              <Route path="/users" element={<UsersPage />} />
-              <Route path="/organizations" element={<OrganizationsPage />} />
-            </Route>
+              <Route element={<ProtectedRoute allowedRoles={['ADMIN']} />}>
+                <Route path="/users" element={<UsersPage />} />
+                <Route path="/organizations" element={<OrganizationsPage />} />
+              </Route>
 
-            {/* Fallback */}
-            <Route path="*" element={<Navigate to="/dashboard" replace />} />
-          </Routes>
-        </HashRouter>
-      </NotificationProvider>
-    </AuthProvider>
+              {/* Fallback */}
+              <Route path="*" element={<Navigate to="/dashboard" replace />} />
+            </Routes>
+          </HashRouter>
+        </NotificationProvider>
+      </AuthProvider>
+    </ThemeProvider>
   );
 };
 

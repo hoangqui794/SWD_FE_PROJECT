@@ -224,25 +224,25 @@ const AlertsPage: React.FC = () => {
             <div className="flex flex-col gap-6 mb-8">
                 <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
                     <div>
-                        <h3 className="text-2xl font-bold tracking-tight">System Alerts</h3>
+                        <h3 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-white">System Alerts</h3>
                         <p className="text-slate-500 text-sm mt-1">Monitor anomalies and configure alert rules.</p>
                     </div>
 
-                    <div className="flex bg-zinc-900 p-1 rounded-lg border border-border-muted">
+                    <div className="flex bg-slate-100 dark:bg-zinc-900 p-1 rounded-xl border border-slate-200 dark:border-border-muted">
                         <button
                             onClick={() => setActiveTab('history')}
-                            className={`px-4 py-2 rounded text-xs font-bold uppercase transition-all ${activeTab === 'history'
-                                ? 'bg-primary/20 text-primary shadow-lg shadow-primary/5'
-                                : 'text-slate-400 hover:text-white'
+                            className={`px-4 py-2 rounded-lg text-xs font-bold uppercase transition-all ${activeTab === 'history'
+                                ? 'bg-white dark:bg-primary/20 text-primary shadow-sm dark:shadow-none'
+                                : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
                                 }`}
                         >
                             Alert History
                         </button>
                         <button
                             onClick={() => setActiveTab('rules')}
-                            className={`px-4 py-2 rounded text-xs font-bold uppercase transition-all ${activeTab === 'rules'
-                                ? 'bg-primary/20 text-primary shadow-lg shadow-primary/5'
-                                : 'text-slate-400 hover:text-white'
+                            className={`px-4 py-2 rounded-lg text-xs font-bold uppercase transition-all ${activeTab === 'rules'
+                                ? 'bg-white dark:bg-primary/20 text-primary shadow-sm dark:shadow-none'
+                                : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
                                 }`}
                         >
                             Alert Rules
@@ -258,9 +258,9 @@ const AlertsPage: React.FC = () => {
                                 <button
                                     key={status}
                                     onClick={() => { setFilterStatus(status as any); setCurrentPage(1); }}
-                                    className={`px-4 py-2 rounded text-xs font-bold uppercase transition-all ${filterStatus === status
-                                        ? 'bg-white text-black shadow-lg shadow-white/10'
-                                        : 'bg-white/5 text-slate-400 hover:bg-white/10'
+                                    className={`px-4 py-2 rounded-lg text-xs font-bold uppercase transition-all ${filterStatus === status
+                                        ? 'bg-slate-900 dark:bg-white text-white dark:text-black shadow-lg shadow-slate-900/10 dark:shadow-white/10'
+                                        : 'bg-white dark:bg-white/5 text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-white/10 border border-slate-200 dark:border-transparent'
                                         }`}
                                 >
                                     {status}
@@ -284,7 +284,7 @@ const AlertsPage: React.FC = () => {
                     <div className="flex justify-end">
                         <button
                             onClick={handleOpenCreateRule}
-                            className="px-4 py-2 bg-primary text-black rounded text-xs font-bold uppercase hover:bg-primary-light transition-all shadow-lg shadow-primary/20 flex items-center gap-2"
+                            className="px-4 py-2 bg-slate-900 dark:bg-primary text-white dark:text-black rounded-lg text-xs font-bold uppercase hover:bg-black dark:hover:bg-primary-light transition-all shadow-lg shadow-slate-900/10 dark:shadow-primary/20 flex items-center gap-2"
                         >
                             <span className="material-symbols-outlined text-sm">add</span>
                             Create Alert Rule
@@ -294,13 +294,13 @@ const AlertsPage: React.FC = () => {
             </div>
 
             {/* Main Content Area */}
-            <div className="bg-white/5 rounded-xl border border-border-muted overflow-hidden relative min-h-[400px]">
+            <div className="bg-white dark:bg-white/5 rounded-xl border border-slate-200 dark:border-border-muted overflow-hidden relative min-h-[400px] shadow-sm transition-colors">
                 {/* Loading */}
                 {isLoading && (
-                    <div className="absolute inset-0 z-10 bg-background-dark/80 flex items-center justify-center">
+                    <div className="absolute inset-0 z-10 bg-white/80 dark:bg-background-dark/80 flex items-center justify-center transition-colors">
                         <div className="flex flex-col items-center gap-3">
                             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
-                            <p className="text-sm text-slate-400">Loading data...</p>
+                            <p className="text-sm text-slate-500 dark:text-slate-400">Loading data...</p>
                         </div>
                     </div>
                 )}
@@ -308,19 +308,19 @@ const AlertsPage: React.FC = () => {
                 {/* TAB 1: HISTORY TABLE */}
                 {activeTab === 'history' && !isLoading && (
                     <>
-                        <div className="p-4 border-b border-border-muted flex gap-4 items-center justify-between bg-zinc-900/30">
+                        <div className="p-4 border-b border-slate-200 dark:border-border-muted flex gap-4 items-center justify-between bg-slate-50/50 dark:bg-zinc-900/30">
                             <div className="relative w-full max-w-sm">
-                                <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 text-sm">search</span>
+                                <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm">search</span>
                                 <input
                                     value={searchTerm}
                                     onChange={(e) => { setSearchTerm(e.target.value); setCurrentPage(1); }}
-                                    className="w-full bg-background-dark border-border-muted text-xs rounded pl-10 focus:ring-1 focus:ring-primary h-9"
+                                    className="w-full bg-white dark:bg-background-dark border border-slate-200 dark:border-border-muted text-xs rounded-lg pl-10 focus:ring-1 focus:ring-primary h-9 text-slate-900 dark:text-white transition-colors"
                                     placeholder="Search by sensor name..."
                                 />
                             </div>
                             <div className="flex items-center gap-3 text-xs text-slate-500">
                                 Showing {totalCount > 0 ? ((currentPage - 1) * pageSize) + 1 : 0}-{Math.min(currentPage * pageSize, totalCount)} of {totalCount}
-                                <button onClick={fetchAlerts} className="ml-2 p-1 hover:text-white transition-colors" title="Refresh">
+                                <button onClick={fetchAlerts} className="ml-2 p-1 hover:text-slate-900 dark:hover:text-white transition-colors" title="Refresh">
                                     <span className="material-symbols-outlined text-sm">refresh</span>
                                 </button>
                             </div>
@@ -328,30 +328,30 @@ const AlertsPage: React.FC = () => {
 
                         <div className="overflow-x-auto">
                             <table className="w-full text-left whitespace-nowrap">
-                                <thead className="bg-zinc-900/50 border-b border-border-muted">
+                                <thead className="bg-slate-50 dark:bg-zinc-900/50 border-b border-slate-200 dark:border-border-muted text-slate-500 dark:text-slate-400">
                                     <tr>
-                                        <th className="px-6 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Time</th>
-                                        <th className="px-6 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Sensor</th>
-                                        <th className="px-6 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Severity</th>
-                                        <th className="px-6 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Status</th>
-                                        {canManage && <th className="px-6 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest text-right">Actions</th>}
+                                        <th className="px-6 py-4 text-[11px] font-extrabold uppercase tracking-widest text-inherit">Time</th>
+                                        <th className="px-6 py-4 text-[11px] font-extrabold uppercase tracking-widest text-inherit">Sensor</th>
+                                        <th className="px-6 py-4 text-[11px] font-extrabold uppercase tracking-widest text-inherit">Severity</th>
+                                        <th className="px-6 py-4 text-[11px] font-extrabold uppercase tracking-widest text-inherit">Status</th>
+                                        {canManage && <th className="px-6 py-4 text-[11px] font-extrabold uppercase tracking-widest text-inherit text-right">Actions</th>}
                                     </tr>
                                 </thead>
-                                <tbody className="divide-y divide-border-muted">
+                                <tbody className="divide-y divide-slate-100 dark:divide-border-muted">
                                     {getPaginatedAlerts().map((alert) => (
-                                        <tr key={alert.id} className="hover:bg-white/5 transition-colors">
-                                            <td className="px-6 py-4 text-xs font-mono text-slate-300">
+                                        <tr key={alert.id} className="hover:bg-slate-50 dark:hover:bg-white/5 transition-colors">
+                                            <td className="px-6 py-4 text-xs font-mono text-slate-500 dark:text-slate-300">
                                                 {new Date(alert.time).toLocaleString('vi-VN')}
                                             </td>
-                                            <td className="px-6 py-4 text-xs font-medium text-white">{alert.sensor_name}</td>
+                                            <td className="px-6 py-4 text-xs font-bold text-slate-900 dark:text-white uppercase tracking-tight">{alert.sensor_name}</td>
                                             <td className="px-6 py-4">
-                                                <span className={`px-2 py-1 border text-[10px] font-bold uppercase rounded ${getSeverityStyle(alert.severity)}`}>
+                                                <span className={`px-2 py-1 border text-[10px] font-bold uppercase rounded-md shadow-sm ${getSeverityStyle(alert.severity)}`}>
                                                     {alert.severity}
                                                 </span>
                                             </td>
                                             <td className="px-6 py-4">
-                                                <span className={`flex items-center gap-2 text-[10px] font-bold uppercase ${alert.status === 'Active' ? 'text-red-500 animate-pulse' : 'text-slate-500'}`}>
-                                                    <span className={`w-1.5 h-1.5 rounded-full ${alert.status === 'Active' ? 'bg-red-500' : 'bg-slate-500'}`}></span>
+                                                <span className={`flex items-center gap-2 text-[10px] font-bold uppercase ${alert.status === 'Active' ? 'text-red-500 animate-pulse' : 'text-slate-400'}`}>
+                                                    <span className={`w-1.5 h-1.5 rounded-full ${alert.status === 'Active' ? 'bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.5)]' : 'bg-slate-300 dark:bg-slate-600'}`}></span>
                                                     {alert.status}
                                                 </span>
                                             </td>
@@ -380,10 +380,14 @@ const AlertsPage: React.FC = () => {
 
                         {/* Pagination */}
                         {totalPages > 1 && (
-                            <div className="p-4 border-t border-border-muted bg-zinc-900/30 flex justify-center gap-2">
-                                <button disabled={currentPage === 1} onClick={() => goToPage(currentPage - 1)} className="px-3 py-1 bg-zinc-800 rounded disabled:opacity-50 text-xs text-white"><span className="material-symbols-outlined text-sm">chevron_left</span></button>
-                                <span className="px-3 py-1 text-xs text-slate-400 self-center">Page {currentPage} of {totalPages}</span>
-                                <button disabled={currentPage === totalPages} onClick={() => goToPage(currentPage + 1)} className="px-3 py-1 bg-zinc-800 rounded disabled:opacity-50 text-xs text-white"><span className="material-symbols-outlined text-sm">chevron_right</span></button>
+                            <div className="p-4 border-t border-slate-200 dark:border-border-muted bg-slate-50/50 dark:bg-zinc-900/30 flex justify-center gap-2">
+                                <button disabled={currentPage === 1} onClick={() => goToPage(currentPage - 1)} className="px-3 py-1 bg-white dark:bg-zinc-800 border border-slate-200 dark:border-transparent rounded-lg disabled:opacity-50 text-xs text-slate-600 dark:text-white transition-all hover:bg-slate-50">
+                                    <span className="material-symbols-outlined text-sm">chevron_left</span>
+                                </button>
+                                <span className="px-3 py-1 text-xs text-slate-500 self-center font-medium">Page {currentPage} of {totalPages}</span>
+                                <button disabled={currentPage === totalPages} onClick={() => goToPage(currentPage + 1)} className="px-3 py-1 bg-white dark:bg-zinc-800 border border-slate-200 dark:border-transparent rounded-lg disabled:opacity-50 text-xs text-slate-600 dark:text-white transition-all hover:bg-slate-50">
+                                    <span className="material-symbols-outlined text-sm">chevron_right</span>
+                                </button>
                             </div>
                         )}
                     </>
@@ -393,32 +397,32 @@ const AlertsPage: React.FC = () => {
                 {activeTab === 'rules' && !isLoading && (
                     <div className="overflow-x-auto">
                         <table className="w-full text-left whitespace-nowrap">
-                            <thead className="bg-zinc-900/50 border-b border-border-muted">
+                            <thead className="bg-slate-50 dark:bg-zinc-900/50 border-b border-slate-200 dark:border-border-muted text-slate-500 dark:text-slate-400">
                                 <tr>
-                                    <th className="px-6 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Rule Name</th>
-                                    <th className="px-6 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Sensor</th>
-                                    <th className="px-6 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Condition</th>
-                                    <th className="px-6 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Threshold</th>
-                                    <th className="px-6 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Priority</th>
-                                    <th className="px-6 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Notify</th>
-                                    {canManage && <th className="px-6 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest text-right">Actions</th>}
+                                    <th className="px-6 py-4 text-[11px] font-extrabold uppercase tracking-widest text-inherit">Rule Name</th>
+                                    <th className="px-6 py-4 text-[11px] font-extrabold uppercase tracking-widest text-inherit">Sensor</th>
+                                    <th className="px-6 py-4 text-[11px] font-extrabold uppercase tracking-widest text-inherit">Condition</th>
+                                    <th className="px-6 py-4 text-[11px] font-extrabold uppercase tracking-widest text-inherit">Threshold</th>
+                                    <th className="px-6 py-4 text-[11px] font-extrabold uppercase tracking-widest text-inherit">Priority</th>
+                                    <th className="px-6 py-4 text-[11px] font-extrabold uppercase tracking-widest text-inherit">Notify</th>
+                                    {canManage && <th className="px-6 py-4 text-[11px] font-extrabold uppercase tracking-widest text-inherit text-right">Actions</th>}
                                 </tr>
                             </thead>
-                            <tbody className="divide-y divide-border-muted">
+                            <tbody className="divide-y divide-slate-100 dark:divide-border-muted">
                                 {rules.map((rule) => (
-                                    <tr key={rule.ruleId} className="hover:bg-white/5 transition-colors">
-                                        <td className="px-6 py-4 text-xs font-bold text-white">{rule.name}</td>
-                                        <td className="px-6 py-4 text-xs text-slate-300">{rule.sensorName}</td>
+                                    <tr key={rule.ruleId} className="hover:bg-slate-50 dark:hover:bg-white/5 transition-colors">
+                                        <td className="px-6 py-4 text-xs font-bold text-slate-900 dark:text-white">{rule.name}</td>
+                                        <td className="px-6 py-4 text-xs text-slate-500 dark:text-slate-300">{rule.sensorName}</td>
                                         <td className="px-6 py-4 text-xs text-slate-400 italic">{rule.conditionType}</td>
-                                        <td className="px-6 py-4 text-xs font-mono text-primary">
+                                        <td className="px-6 py-4 text-xs font-mono text-primary font-bold">
                                             {rule.minVal} - {rule.maxVal}
                                         </td>
                                         <td className="px-6 py-4">
-                                            <span className={`px-2 py-1 border text-[10px] font-bold uppercase rounded ${getSeverityStyle(rule.priority)}`}>
+                                            <span className={`px-2 py-1 border text-[10px] font-bold uppercase rounded-md shadow-sm ${getSeverityStyle(rule.priority)}`}>
                                                 {rule.priority}
                                             </span>
                                         </td>
-                                        <td className="px-6 py-4 text-xs text-slate-400 flex items-center gap-1">
+                                        <td className="px-6 py-4 text-xs text-slate-500 dark:text-slate-400 flex items-center gap-1">
                                             <span className="material-symbols-outlined text-sm">mail</span>
                                             {rule.notificationMethod}
                                         </td>
@@ -467,17 +471,17 @@ const AlertsPage: React.FC = () => {
             {/* 1.5. Resolve Confirm Modal */}
             <Modal isOpen={resolveConfirmId !== null} onClose={() => setResolveConfirmId(null)} title="Confirm Resolve">
                 <div className="p-6">
-                    <div className="flex items-center gap-4 mb-4 text-green-500 bg-green-500/10 p-4 rounded-lg border border-green-500/20">
+                    <div className="flex items-center gap-4 mb-4 text-emerald-600 dark:text-green-500 bg-emerald-50 dark:bg-green-500/10 p-4 rounded-xl border border-emerald-100 dark:border-green-500/20 shadow-sm">
                         <span className="material-symbols-outlined text-3xl">check_circle</span>
                         <div>
-                            <h4 className="font-bold uppercase text-sm">Resolve Alert</h4>
+                            <h4 className="font-bold uppercase text-sm tracking-tight">Resolve Alert</h4>
                             <p className="text-xs opacity-80 mt-1">Mark this issue as resolved?</p>
                         </div>
                     </div>
-                    <p className="text-slate-300 text-sm mb-6">This will update the alert status to "Resolved".</p>
+                    <p className="text-slate-500 dark:text-slate-300 text-sm mb-6 px-1">This will update the alert status to <span className="font-bold text-emerald-600 dark:text-green-400">"Resolved"</span>.</p>
                     <div className="flex gap-3">
-                        <button onClick={() => setResolveConfirmId(null)} className="flex-1 px-4 py-2.5 border border-border-muted text-white rounded text-xs font-bold uppercase hover:bg-white/5">Cancel</button>
-                        <button onClick={confirmResolve} className="flex-1 px-4 py-2.5 bg-green-500 text-white rounded text-xs font-bold uppercase hover:bg-green-600 shadow-lg shadow-green-500/20">Yes, Resolve</button>
+                        <button onClick={() => setResolveConfirmId(null)} className="flex-1 px-4 py-2.5 border border-slate-200 dark:border-border-muted text-slate-500 dark:text-white rounded-lg text-xs font-bold uppercase hover:bg-slate-50 dark:hover:bg-white/5 transition-colors">Cancel</button>
+                        <button onClick={confirmResolve} className="flex-1 px-4 py-2.5 bg-emerald-500 text-white rounded-lg text-xs font-bold uppercase hover:bg-emerald-600 shadow-lg shadow-emerald-500/20 transition-all">Yes, Resolve</button>
                     </div>
                 </div>
             </Modal>
@@ -486,10 +490,10 @@ const AlertsPage: React.FC = () => {
             <Modal isOpen={isRuleModalOpen} onClose={() => setIsRuleModalOpen(false)} title={editingRuleId ? "Edit Alert Rule" : "Create Alert Rule"}>
                 <form onSubmit={handleCreateRule} className="p-6 space-y-5">
                     <div>
-                        <label className="block text-xs font-bold text-slate-400 uppercase mb-2">Rule Name</label>
+                        <label className="block text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase mb-2 tracking-widest">Rule Name</label>
                         <input
                             required
-                            className="w-full bg-zinc-800 border border-zinc-700 rounded px-3 py-2.5 text-sm text-white placeholder-slate-500 focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary transition-all"
+                            className="w-full bg-slate-50 dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 rounded-lg px-3 py-2.5 text-sm text-slate-900 dark:text-white placeholder-slate-400 focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary transition-all"
                             placeholder="e.g. High Temp Warning"
                             value={ruleFormData.name}
                             onChange={e => setRuleFormData({ ...ruleFormData, name: e.target.value })}
@@ -497,23 +501,23 @@ const AlertsPage: React.FC = () => {
                     </div>
 
                     <div>
-                        <label className="block text-xs font-bold text-slate-400 uppercase mb-2">Target Sensor</label>
+                        <label className="block text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase mb-2 tracking-widest">Target Sensor</label>
                         <div className="relative">
                             <select
                                 required
-                                className="w-full bg-zinc-800 border border-zinc-700 rounded px-3 py-2.5 text-sm text-white appearance-none focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary transition-all"
+                                className="w-full bg-slate-50 dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 rounded-lg px-3 py-2.5 text-sm text-slate-900 dark:text-white appearance-none focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary transition-all"
                                 value={ruleFormData.sensorId}
                                 onChange={e => setRuleFormData({ ...ruleFormData, sensorId: Number(e.target.value) })}
                             >
-                                <option value={0} className="bg-zinc-800 text-slate-400">-- Select Sensor --</option>
+                                <option value={0} className="bg-white text-slate-400">-- Select Sensor --</option>
                                 {sensors.length > 0 ? (
                                     sensors.map(s => (
-                                        <option key={s.sensorId} value={s.sensorId} className="bg-zinc-800 text-white">
+                                        <option key={s.sensorId} value={s.sensorId} className="bg-white dark:bg-zinc-800 text-slate-900 dark:text-white">
                                             {s.sensorName} ({s.hubName})
                                         </option>
                                     ))
                                 ) : (
-                                    <option disabled className="bg-zinc-800 text-slate-500">Loading sensors...</option>
+                                    <option disabled className="bg-white text-slate-400">Loading sensors...</option>
                                 )}
                             </select>
                             <span className="material-symbols-outlined absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none text-lg">expand_more</span>
@@ -522,17 +526,17 @@ const AlertsPage: React.FC = () => {
 
                     <div className="grid grid-cols-2 gap-5">
                         <div>
-                            <label className="block text-xs font-bold text-slate-400 uppercase mb-2">Min Value</label>
+                            <label className="block text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase mb-2 tracking-widest">Min Value</label>
                             <input type="number" step="0.1"
-                                className="w-full bg-zinc-800 border border-zinc-700 rounded px-3 py-2.5 text-sm text-white focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+                                className="w-full bg-slate-50 dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 rounded-lg px-3 py-2.5 text-sm text-slate-900 dark:text-white focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary transition-colors"
                                 value={ruleFormData.minVal}
                                 onChange={e => setRuleFormData({ ...ruleFormData, minVal: Number(e.target.value) })}
                             />
                         </div>
                         <div>
-                            <label className="block text-xs font-bold text-slate-400 uppercase mb-2">Max Value</label>
+                            <label className="block text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase mb-2 tracking-widest">Max Value</label>
                             <input type="number" step="0.1"
-                                className="w-full bg-zinc-800 border border-zinc-700 rounded px-3 py-2.5 text-sm text-white focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+                                className="w-full bg-slate-50 dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 rounded-lg px-3 py-2.5 text-sm text-slate-900 dark:text-white focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary transition-colors"
                                 value={ruleFormData.maxVal}
                                 onChange={e => setRuleFormData({ ...ruleFormData, maxVal: Number(e.target.value) })}
                             />
@@ -541,40 +545,40 @@ const AlertsPage: React.FC = () => {
 
                     <div className="grid grid-cols-2 gap-5">
                         <div>
-                            <label className="block text-xs font-bold text-slate-400 uppercase mb-2">Priority</label>
+                            <label className="block text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase mb-2 tracking-widest">Priority</label>
                             <div className="relative">
                                 <select
-                                    className="w-full bg-zinc-800 border border-zinc-700 rounded px-3 py-2.5 text-sm text-white appearance-none focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+                                    className="w-full bg-slate-50 dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 rounded-lg px-3 py-2.5 text-sm text-slate-900 dark:text-white appearance-none focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary transition-colors"
                                     value={ruleFormData.priority}
                                     onChange={e => setRuleFormData({ ...ruleFormData, priority: e.target.value })}
                                 >
-                                    <option value="High" className="bg-zinc-800">High</option>
-                                    <option value="Medium" className="bg-zinc-800">Medium</option>
-                                    <option value="Low" className="bg-zinc-800">Low</option>
+                                    <option value="High" className="bg-white dark:bg-zinc-800">High</option>
+                                    <option value="Medium" className="bg-white dark:bg-zinc-800">Medium</option>
+                                    <option value="Low" className="bg-white dark:bg-zinc-800">Low</option>
                                 </select>
                                 <span className="material-symbols-outlined absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none text-lg">expand_more</span>
                             </div>
                         </div>
                         <div>
-                            <label className="block text-xs font-bold text-slate-400 uppercase mb-2">Notify Via</label>
+                            <label className="block text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase mb-2 tracking-widest">Notify Via</label>
                             <div className="relative">
                                 <select
-                                    className="w-full bg-zinc-800 border border-zinc-700 rounded px-3 py-2.5 text-sm text-white appearance-none focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+                                    className="w-full bg-slate-50 dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 rounded-lg px-3 py-2.5 text-sm text-slate-900 dark:text-white appearance-none focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary transition-colors"
                                     value={ruleFormData.notificationMethod}
                                     onChange={e => setRuleFormData({ ...ruleFormData, notificationMethod: e.target.value })}
                                 >
-                                    <option value="Email" className="bg-zinc-800">Email</option>
-                                    <option value="SMS" className="bg-zinc-800">SMS</option>
-                                    <option value="All" className="bg-zinc-800">All Channels</option>
+                                    <option value="Email" className="bg-white dark:bg-zinc-800">Email</option>
+                                    <option value="SMS" className="bg-white dark:bg-zinc-800">SMS</option>
+                                    <option value="All" className="bg-white dark:bg-zinc-800">All Channels</option>
                                 </select>
                                 <span className="material-symbols-outlined absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none text-lg">expand_more</span>
                             </div>
                         </div>
                     </div>
 
-                    <div className="pt-6 flex gap-3 border-t border-border-muted mt-2">
-                        <button type="button" onClick={() => setIsRuleModalOpen(false)} className="flex-1 px-4 py-2.5 border border-zinc-700 text-slate-300 rounded text-xs font-bold uppercase hover:bg-white/5 transition-colors">Cancel</button>
-                        <button disabled={isSubmittingRule} type="submit" className="flex-1 px-4 py-2.5 bg-primary text-black rounded text-xs font-bold uppercase hover:bg-primary-light disabled:opacity-50 shadow-lg shadow-primary/20 transition-all">
+                    <div className="pt-6 flex gap-3 border-t border-slate-100 dark:border-border-muted mt-2">
+                        <button type="button" onClick={() => setIsRuleModalOpen(false)} className="flex-1 px-4 py-2.5 border border-slate-200 dark:border-zinc-700 text-slate-500 dark:text-slate-300 rounded-lg text-xs font-bold uppercase hover:bg-slate-50 dark:hover:bg-white/5 transition-colors">Cancel</button>
+                        <button disabled={isSubmittingRule} type="submit" className="flex-1 px-4 py-2.5 bg-slate-900 dark:bg-primary text-white dark:text-black rounded-lg text-xs font-bold uppercase hover:bg-black dark:hover:bg-primary-light disabled:opacity-50 shadow-lg shadow-slate-900/10 dark:shadow-primary/20 transition-all">
                             {isSubmittingRule ? 'Saving...' : (editingRuleId ? 'Update Rule' : 'Create Rule')}
                         </button>
                     </div>

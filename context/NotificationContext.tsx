@@ -55,27 +55,27 @@ export const NotificationProvider: React.FC<NotificationProviderProps> = ({ chil
                         zIndex: 999999,
                         minWidth: '320px'
                     }}
-                    className={`flex items-center gap-4 px-6 py-4 rounded-xl shadow-2xl border-4 ${notification.type === 'success' ? 'bg-black border-green-500 text-green-500' :
-                        notification.type === 'error' ? 'bg-black border-red-500 text-red-500' :
-                            notification.type === 'warning' ? 'bg-black border-yellow-500 text-yellow-500' :
-                                'bg-black border-blue-500 text-blue-500'
+                    className={`flex items-center gap-4 px-6 py-4 rounded-xl shadow-2xl border transition-all duration-300 ${notification.type === 'success' ? 'bg-emerald-50 dark:bg-emerald-500/10 border-emerald-200 dark:border-emerald-500/20 text-emerald-700 dark:text-emerald-400' :
+                        notification.type === 'error' ? 'bg-red-50 dark:bg-red-500/10 border-red-200 dark:border-red-500/20 text-red-700 dark:text-red-400' :
+                            notification.type === 'warning' ? 'bg-amber-50 dark:bg-amber-500/10 border-amber-200 dark:border-amber-500/20 text-amber-700 dark:text-amber-400' :
+                                'bg-blue-50 dark:bg-blue-500/10 border-blue-200 dark:border-blue-500/20 text-blue-700 dark:text-blue-400'
                         }`}
                 >
                     <div className="flex-1">
-                        <h4 className="font-black uppercase text-xs tracking-[0.2em] mb-1">
+                        <h4 className="font-black uppercase text-[10px] tracking-[0.2em] mb-1 opacity-80">
                             {notification.type === 'error' ? '🚨 CRITICAL' :
                                 notification.type === 'warning' ? '⚠️ WARNING' : 'ℹ️ INFO'}
                         </h4>
-                        <p className="text-sm text-white font-bold">{notification.message}</p>
+                        <p className="text-sm font-bold">{notification.message}</p>
                     </div>
                     <button
                         onClick={() => {
                             console.log("Closing notification manually");
                             setNotification(null);
                         }}
-                        className="bg-white/10 hover:bg-white/20 rounded-full p-2"
+                        className="hover:bg-black/5 dark:hover:bg-white/10 rounded-full p-2 transition-colors"
                     >
-                        <span className="material-symbols-outlined text-lg text-white">close</span>
+                        <span className="material-symbols-outlined text-lg">close</span>
                     </button>
                 </div>
             )}

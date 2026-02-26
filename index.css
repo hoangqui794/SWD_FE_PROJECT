@@ -4,7 +4,7 @@
 
 @layer base {
   body {
-    @apply font-display bg-background-light dark:bg-background-dark text-slate-900 dark:text-white antialiased;
+    @apply font-display bg-white dark:bg-background-dark text-slate-900 dark:text-white antialiased transition-colors duration-300;
   }
 }
 
@@ -13,11 +13,11 @@
 }
 
 .sidebar-item-active {
-  @apply bg-white/5 border-r-2 border-primary text-white;
+  @apply bg-slate-100 dark:bg-white/5 border-r-2 border-primary text-primary dark:text-white;
 }
 
 .sidebar-item-inactive {
-  @apply text-slate-500 hover:text-white transition-colors;
+  @apply text-slate-500 hover:text-slate-900 dark:hover:text-white transition-colors;
 }
 
 /* Custom Scrollbar */
@@ -25,10 +25,10 @@
   width: 6px;
 }
 ::-webkit-scrollbar-track {
-  @apply bg-background-dark;
+  @apply bg-slate-100 dark:bg-background-dark;
 }
 ::-webkit-scrollbar-thumb {
-  @apply bg-zinc-800 rounded-full;
+  @apply bg-slate-300 dark:bg-zinc-800 rounded-full;
 }
 
 /* Chart Animations */

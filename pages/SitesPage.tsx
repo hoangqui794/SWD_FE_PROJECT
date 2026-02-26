@@ -163,24 +163,24 @@ const SitesPage: React.FC = () => {
     <Layout title="Sites" breadcrumb="Administration">
       <div className="flex justify-between items-end mb-8">
         <div>
-          <h3 className="text-2xl font-bold tracking-tight">IoT Sites Management</h3>
+          <h3 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-white">IoT Sites Management</h3>
           <p className="text-slate-500 text-sm mt-1">Manage environmental monitoring sites across the chain.</p>
         </div>
         {isAdmin && (
-          <button onClick={handleAddNew} className="px-4 py-2 bg-white text-black hover:bg-slate-200 transition-colors rounded text-xs font-bold flex items-center gap-2">
+          <button onClick={handleAddNew} className="px-4 py-2 bg-slate-900 border border-slate-900 dark:bg-white dark:border-white text-white dark:text-black hover:bg-black dark:hover:bg-slate-200 transition-all rounded shadow-lg shadow-slate-900/10 dark:shadow-none text-xs font-bold flex items-center gap-2">
             <span className="material-symbols-outlined text-sm">add</span> Add New Site
           </button>
         )}
       </div>
 
-      <div className="bg-white/5 rounded-xl border border-border-muted overflow-hidden">
-        <div className="p-4 border-b border-border-muted flex gap-4 items-center justify-between bg-zinc-900/30">
+      <div className="bg-white dark:bg-white/5 rounded-xl border border-slate-200 dark:border-border-muted overflow-hidden transition-colors shadow-sm">
+        <div className="p-4 border-b border-slate-200 dark:border-border-muted flex gap-4 items-center justify-between bg-slate-50 dark:bg-zinc-900/30">
           <div className="relative w-full max-w-sm">
-            <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 text-sm">search</span>
+            <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 dark:text-slate-500 text-sm">search</span>
             <input
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full bg-background-dark border-border-muted text-xs rounded pl-10 focus:ring-1 focus:ring-primary h-9"
+              className="w-full bg-white dark:bg-background-dark border border-slate-200 dark:border-border-muted text-xs rounded pl-10 focus:ring-1 focus:ring-primary h-9 text-slate-900 dark:text-white transition-colors"
               placeholder="Search sites..."
             />
           </div>
@@ -197,34 +197,34 @@ const SitesPage: React.FC = () => {
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-left min-w-[800px]">
-              <thead className="border-b border-border-muted bg-zinc-900/50">
+              <thead className="border-b border-slate-200 dark:border-border-muted bg-slate-50 dark:bg-zinc-900/50 text-slate-500 dark:text-slate-400">
                 <tr>
-                  <th className="px-6 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Site ID</th>
-                  <th className="px-6 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Organization</th>
-                  <th className="px-6 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Site Name</th>
-                  <th className="px-6 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest text-center">Hubs</th>
-                  {canEdit && <th className="px-6 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest text-right">Actions</th>}
+                  <th className="px-6 py-4 text-[11px] font-extrabold uppercase tracking-widest text-inherit">Site ID</th>
+                  <th className="px-6 py-4 text-[11px] font-extrabold uppercase tracking-widest text-inherit">Organization</th>
+                  <th className="px-6 py-4 text-[11px] font-extrabold uppercase tracking-widest text-inherit">Site Name</th>
+                  <th className="px-6 py-4 text-[11px] font-extrabold uppercase tracking-widest text-inherit text-center">Hubs</th>
+                  {canEdit && <th className="px-6 py-4 text-[11px] font-extrabold uppercase tracking-widest text-inherit text-right">Actions</th>}
                 </tr>
               </thead>
-              <tbody className="divide-y divide-border-muted">
+              <tbody className="divide-y divide-slate-100 dark:divide-border-muted">
                 {sites.map(site => (
-                  <tr key={site.siteId} className="hover:bg-white/5 transition-colors">
-                    <td className="px-6 py-4 text-xs font-bold text-white whitespace-nowrap">{site.siteId}</td>
-                    <td className="px-6 py-4 text-xs whitespace-nowrap">{site.orgName}</td>
-                    <td className="px-6 py-4 text-sm font-medium min-w-[200px]">
+                  <tr key={site.siteId} className="hover:bg-slate-50 dark:hover:bg-white/5 transition-colors">
+                    <td className="px-6 py-4 text-xs font-bold text-slate-900 dark:text-white whitespace-nowrap">{site.siteId}</td>
+                    <td className="px-6 py-4 text-xs whitespace-nowrap text-slate-700 dark:text-slate-300">{site.orgName}</td>
+                    <td className="px-6 py-4 text-sm font-medium min-w-[200px] text-slate-900 dark:text-white">
                       {site.name}
-                      <div className="text-[10px] text-slate-500 font-normal mt-0.5">{site.address}</div>
+                      <div className="text-[10px] text-slate-500 dark:text-slate-400 font-normal mt-0.5">{site.address}</div>
                       <div className="text-[9px] text-slate-600 font-mono mt-0.5 flex items-center gap-1">
                         <span className="material-symbols-outlined text-[10px]">location_on</span>
                         {site.geoLocation}
                       </div>
                     </td>
-                    <td className="px-6 py-4 text-center font-bold">{site.hubCount}</td>
+                    <td className="px-6 py-4 text-center font-bold text-slate-900 dark:text-white">{site.hubCount}</td>
                     {canEdit && (
                       <td className="px-6 py-4 text-right flex justify-end gap-2">
                         <button
                           onClick={() => handleEdit(site)}
-                          className="text-slate-500 hover:text-white transition-colors"
+                          className="text-slate-400 hover:text-primary dark:hover:text-white transition-colors"
                           title="Edit"
                         >
                           <span className="material-symbols-outlined text-sm">edit</span>
@@ -232,7 +232,7 @@ const SitesPage: React.FC = () => {
                         {isAdmin && (
                           <button
                             onClick={() => initiateDelete(site.siteId)}
-                            className="text-slate-500 hover:text-red-500 transition-colors"
+                            className="text-slate-400 hover:text-red-500 transition-colors"
                             title="Delete"
                           >
                             <span className="material-symbols-outlined text-sm">delete</span>
@@ -259,42 +259,42 @@ const SitesPage: React.FC = () => {
       <Modal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} title={editingId ? "Edit Site" : "Add New Site"}>
         <form className="p-6 space-y-6">
           <div className="space-y-2">
-            <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Organization</label>
+            <label className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest">Organization</label>
             <select
               value={formData.orgId}
               onChange={(e) => setFormData({ ...formData, orgId: Number(e.target.value) })}
-              className="w-full bg-zinc-900 border border-border-muted rounded-lg px-4 py-3 text-sm focus:ring-1 focus:ring-primary outline-none text-white appearance-none"
+              className="w-full bg-slate-50 dark:bg-zinc-900 border border-slate-200 dark:border-border-muted rounded-lg px-4 py-3 text-sm focus:ring-1 focus:ring-primary outline-none text-slate-900 dark:text-white appearance-none transition-colors"
             >
               <option value={0} disabled>Select Organization</option>
               {organizations.map(org => (
-                <option key={org.orgId} value={org.orgId}>{org.name}</option>
+                <option key={org.orgId} value={org.orgId} className="text-slate-900 bg-white">{org.name}</option>
               ))}
             </select>
           </div>
           <div className="space-y-2">
-            <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Site Name</label>
+            <label className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest">Site Name</label>
             <input
               value={formData.name}
               onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-              className="w-full bg-zinc-900 border border-border-muted rounded-lg px-4 py-3 text-sm focus:ring-1 focus:ring-primary outline-none text-white"
+              className="w-full bg-slate-50 dark:bg-zinc-900 border border-slate-200 dark:border-border-muted rounded-lg px-4 py-3 text-sm focus:ring-1 focus:ring-primary outline-none text-slate-900 dark:text-white transition-colors"
               placeholder="e.g., WinMart Cầu Giấy"
             />
           </div>
           <div className="space-y-2">
-            <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Address</label>
+            <label className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest">Address</label>
             <input
               value={formData.address}
               onChange={(e) => setFormData({ ...formData, address: e.target.value })}
-              className="w-full bg-zinc-900 border border-border-muted rounded-lg px-4 py-3 text-sm focus:ring-1 focus:ring-primary outline-none text-white"
+              className="w-full bg-slate-50 dark:bg-zinc-900 border border-slate-200 dark:border-border-muted rounded-lg px-4 py-3 text-sm focus:ring-1 focus:ring-primary outline-none text-slate-900 dark:text-white transition-colors"
               placeholder="e.g., 123 Cau Giay, Hanoi"
             />
           </div>
           <div className="space-y-2">
-            <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Geo Location</label>
+            <label className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest">Geo Location</label>
             <input
               value={formData.geoLocation}
               onChange={(e) => setFormData({ ...formData, geoLocation: e.target.value })}
-              className="w-full bg-zinc-900 border border-border-muted rounded-lg px-4 py-3 text-sm focus:ring-1 focus:ring-primary outline-none text-white"
+              className="w-full bg-slate-50 dark:bg-zinc-900 border border-slate-200 dark:border-border-muted rounded-lg px-4 py-3 text-sm focus:ring-1 focus:ring-primary outline-none text-slate-900 dark:text-white transition-colors"
               placeholder="Lat, Long (e.g. 21.0285,105.8542)"
             />
           </div>
@@ -302,14 +302,14 @@ const SitesPage: React.FC = () => {
           <div className="flex gap-3 pt-4">
             <button
               onClick={() => setIsModalOpen(false)}
-              className="flex-1 px-6 py-2.5 border border-border-muted text-slate-400 rounded text-xs font-bold uppercase hover:bg-white/5"
+              className="flex-1 px-6 py-2.5 border border-slate-200 dark:border-border-muted text-slate-500 dark:text-slate-400 rounded text-xs font-bold uppercase hover:bg-slate-50 dark:hover:bg-white/5 transition-colors"
               type="button"
             >
               Cancel
             </button>
             <button
               onClick={handleSubmit}
-              className="flex-1 px-6 py-2.5 bg-white text-black rounded text-xs font-bold uppercase hover:bg-slate-200"
+              className="flex-1 px-6 py-2.5 bg-slate-900 dark:bg-white text-white dark:text-black rounded text-xs font-bold uppercase hover:bg-black dark:hover:bg-slate-200 shadow-lg shadow-slate-900/10 dark:shadow-none transition-all"
               type="button"
             >
               {editingId ? "Save Changes" : "Add Site"}
@@ -325,21 +325,21 @@ const SitesPage: React.FC = () => {
             <div className="w-12 h-12 rounded-full bg-red-500/10 flex items-center justify-center mb-2">
               <span className="material-symbols-outlined text-red-500 text-2xl">warning</span>
             </div>
-            <h4 className="text-lg font-bold text-white">Delete Site?</h4>
-            <p className="text-slate-400 text-sm">
+            <h4 className="text-lg font-bold text-slate-900 dark:text-white">Delete Site?</h4>
+            <p className="text-slate-500 dark:text-slate-400 text-sm">
               Are you sure you want to delete this site? This action cannot be undone.
             </p>
           </div>
           <div className="flex gap-3 pt-2">
             <button
               onClick={() => setDeleteTargetId(null)}
-              className="flex-1 px-6 py-2.5 border border-border-muted text-slate-400 rounded text-xs font-bold uppercase hover:bg-white/5"
+              className="flex-1 px-6 py-2.5 border border-slate-200 dark:border-border-muted text-slate-500 dark:text-slate-400 rounded text-xs font-bold uppercase hover:bg-slate-50 dark:hover:bg-white/5 transition-colors"
             >
               Cancel
             </button>
             <button
               onClick={confirmDelete}
-              className="flex-1 px-6 py-2.5 bg-red-500 text-white rounded text-xs font-bold uppercase hover:bg-red-600 shadow-lg shadow-red-500/20"
+              className="flex-1 px-6 py-2.5 bg-red-500 text-white rounded text-xs font-bold uppercase hover:bg-red-600 shadow-lg shadow-red-500/20 transition-all"
             >
               Yes, Delete
             </button>

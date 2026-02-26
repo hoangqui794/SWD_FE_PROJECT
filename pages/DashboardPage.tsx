@@ -234,12 +234,12 @@ const DashboardPage: React.FC = () => {
       {/* Header Section */}
       <div className="flex justify-between items-end mb-8">
         <div>
-          <h3 className="text-2xl font-bold tracking-tight">System Status</h3>
+          <h3 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-white">System Status</h3>
           <p className="text-slate-500 text-sm mt-1">Global metrics from {statsData?.total_sites || 0} active locations.</p>
         </div>
         <button
           onClick={handleRefreshAll}
-          className="px-4 py-2 bg-primary hover:bg-primary/80 transition-colors rounded text-xs font-bold text-white flex items-center gap-2"
+          className="px-4 py-2 bg-primary hover:bg-primary/80 transition-all rounded shadow-lg shadow-primary/20 hover:shadow-primary/30 text-xs font-bold text-white flex items-center gap-2"
         >
           <span className={`material-symbols-outlined text-sm ${(loading || envLoading || historyLoading) ? 'animate-spin' : ''}`}>refresh</span> Refresh
         </button>
@@ -248,12 +248,12 @@ const DashboardPage: React.FC = () => {
       {/* Stats Cards Row */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-10">
         {stats.map((stat, idx) => (
-          <div key={idx} className="p-6 rounded-xl border border-border-muted bg-white/5 flex flex-col justify-between h-32">
+          <div key={idx} className="p-6 rounded-xl border border-slate-200 dark:border-border-muted bg-slate-50 dark:bg-white/5 flex flex-col justify-between h-32 transition-colors hover:border-primary/50 group">
             <div className="flex justify-between items-start">
-              <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">{stat.label}</p>
-              <span className={`material-symbols-outlined ${stat.color || 'text-slate-600'}`}>{stat.icon}</span>
+              <p className="text-xs font-extrabold text-slate-500 dark:text-slate-400 uppercase tracking-widest">{stat.label}</p>
+              <span className={`material-symbols-outlined transition-transform group-hover:scale-110 ${stat.color || 'text-slate-400 dark:text-slate-600'}`}>{stat.icon}</span>
             </div>
-            <p className={`text-4xl font-bold font-display ${stat.color || 'text-white'}`}>{stat.value}</p>
+            <p className={`text-4xl font-bold font-display ${stat.color && stat.color !== 'text-white' ? stat.color : 'text-slate-900 dark:text-white'}`}>{stat.value}</p>
           </div>
         ))}
       </div>
@@ -273,22 +273,22 @@ const DashboardPage: React.FC = () => {
                 </div>
               )}
             </div>
-            <p className="text-slate-500 text-xs mt-1">Latest readings from <span className="text-white font-medium">{envHubName || 'Selected Hub'}</span></p>
+            <p className="text-slate-500 text-xs mt-1">Latest readings from <span className="text-slate-900 dark:text-white font-medium">{envHubName || 'Selected Hub'}</span></p>
           </div>
-          <div className="flex items-center gap-3 p-2 bg-white/5 rounded-lg border border-border-muted">
+          <div className="flex items-center gap-3 p-2 bg-slate-50 dark:bg-white/5 rounded-lg border border-slate-200 dark:border-border-muted">
             <select
               value={selectedHubId ?? ''}
               onChange={(e) => setSelectedHubId(Number(e.target.value))}
-              className="bg-transparent border-none text-xs font-bold text-white focus:ring-0 cursor-pointer outline-none"
+              className="bg-transparent border-none text-xs font-bold text-slate-900 dark:text-white focus:ring-0 cursor-pointer outline-none"
             >
               {hubs.map(hub => (
-                <option key={hub.hubId} value={hub.hubId} className='text-black'>{hub.name}</option>
+                <option key={hub.hubId} value={hub.hubId} className='text-slate-900 bg-white'>{hub.name}</option>
               ))}
             </select>
-            <span className="text-slate-600">|</span>
+            <span className="text-slate-300 dark:text-slate-600">|</span>
             <button
               onClick={() => selectedHubId && fetchCurrentTemperature(selectedHubId)}
-              className="text-[10px] uppercase font-bold text-slate-400 hover:text-white transition-colors"
+              className="text-[10px] uppercase font-bold text-slate-400 dark:text-slate-500 hover:text-primary dark:hover:text-white transition-colors"
             >
               Refresh
             </button>
@@ -296,7 +296,7 @@ const DashboardPage: React.FC = () => {
         </div>
 
         {envLoading && envSensors.length === 0 ? (
-          <div className="h-48 flex items-center justify-center bg-white/5 rounded-xl border border-dashed border-border-muted">
+          <div className="h-48 flex items-center justify-center bg-slate-50 dark:bg-white/5 rounded-xl border border-dashed border-slate-200 dark:border-border-muted">
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
           </div>
         ) : (
@@ -306,7 +306,7 @@ const DashboardPage: React.FC = () => {
               const latestReading = sensor.readings && sensor.readings.length > 0 ? sensor.readings[0] : null;
 
               return (
-                <div key={sensor.sensorId} className={`relative overflow-hidden rounded-xl border ${color.border} bg-white/5 p-6 hover:bg-white/[0.08] transition-all group`}>
+                <div key={sensor.sensorId} className={`relative overflow-hidden rounded-xl border ${color.border} bg-white dark:bg-white/5 p-6 hover:shadow-lg dark:hover:bg-white/[0.08] transition-all group`}>
                   <div className={`absolute inset-0 bg-gradient-to-br ${color.gradient} opacity-50`}></div>
                   <div className="relative z-10">
                     <div className="flex items-start justify-between mb-4">
@@ -356,31 +356,31 @@ const DashboardPage: React.FC = () => {
       {/* Section 2: Historical Readings (API Driven) */}
       <div className="mb-10">
         <div className="flex flex-col lg:flex-row lg:items-center justify-between mb-6 gap-4">
-          <h4 className="text-lg font-bold">Historical Readings</h4>
-          <div className="flex flex-wrap items-center gap-3 p-2 bg-white/5 rounded-lg border border-border-muted">
+          <h4 className="text-lg font-bold text-slate-900 dark:text-white">Historical Readings</h4>
+          <div className="flex flex-wrap items-center gap-3 p-2 bg-slate-50 dark:bg-white/5 rounded-lg border border-slate-200 dark:border-border-muted">
             <div className="flex items-center gap-2 px-2">
-              <span className="text-[10px] font-bold text-slate-500 uppercase">From</span>
+              <span className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase">From</span>
               <input
                 type="date"
                 value={dateFrom}
                 onChange={(e) => setDateFrom(e.target.value)}
-                className="bg-transparent border-none text-xs font-bold text-white focus:ring-0 cursor-pointer p-0 select-none"
+                className="bg-transparent border-none text-xs font-bold text-slate-900 dark:text-white focus:ring-0 cursor-pointer p-0 select-none"
               />
             </div>
-            <span className="text-slate-600">|</span>
+            <span className="text-slate-300 dark:text-slate-600">|</span>
             <div className="flex items-center gap-2 px-2">
-              <span className="text-[10px] font-bold text-slate-500 uppercase">To</span>
+              <span className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase">To</span>
               <input
                 type="date"
                 value={dateTo}
                 onChange={(e) => setDateTo(e.target.value)}
-                className="bg-transparent border-none text-xs font-bold text-white focus:ring-0 cursor-pointer p-0 select-none"
+                className="bg-transparent border-none text-xs font-bold text-slate-900 dark:text-white focus:ring-0 cursor-pointer p-0 select-none"
               />
             </div>
-            <span className="text-slate-600">|</span>
+            <span className="text-slate-300 dark:text-slate-600">|</span>
             <button
               onClick={() => selectedHubId && fetchHistory(selectedHubId, dateFrom, dateTo)}
-              className="px-3 py-1 bg-white/10 hover:bg-white/20 rounded text-[10px] font-bold uppercase transition-colors"
+              className="px-3 py-1 bg-white dark:bg-white/10 hover:bg-slate-100 dark:hover:bg-white/20 border border-slate-200 dark:border-transparent rounded text-[10px] font-bold uppercase transition-colors text-slate-700 dark:text-slate-300"
             >
               Get History
             </button>
@@ -393,20 +393,20 @@ const DashboardPage: React.FC = () => {
               <button
                 key={s.sensorId}
                 onClick={() => setSelectedHistorySensorId(s.sensorId)}
-                className={`w-full p-4 rounded-xl border text-left transition-all ${selectedHistorySensorId === s.sensorId ? 'border-primary bg-primary/5' : 'border-border-muted bg-white/5 hover:bg-white/10'}`}
+                className={`w-full p-4 rounded-xl border text-left transition-all ${selectedHistorySensorId === s.sensorId ? 'border-primary bg-primary/5 shadow-sm shadow-primary/10' : 'border-slate-200 dark:border-border-muted bg-white dark:bg-white/5 hover:bg-slate-50 dark:hover:bg-white/10'}`}
               >
                 <div className="flex items-center gap-3">
-                  <span className={`material-symbols-outlined text-sm ${selectedHistorySensorId === s.sensorId ? 'text-primary' : 'text-slate-500'}`}>{getSensorIcon(s.typeName)}</span>
+                  <span className={`material-symbols-outlined text-sm ${selectedHistorySensorId === s.sensorId ? 'text-primary' : 'text-slate-400 dark:text-slate-500'}`}>{getSensorIcon(s.typeName)}</span>
                   <div>
-                    <p className="text-[10px] font-bold text-slate-400 uppercase">{s.typeName}</p>
-                    <p className="text-xs font-medium text-white truncate max-w-[120px]">{s.name}</p>
+                    <p className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase">{s.typeName}</p>
+                    <p className="text-xs font-medium text-slate-900 dark:text-white truncate max-w-[120px]">{s.name}</p>
                   </div>
                 </div>
               </button>
             ))}
           </div>
 
-          <div className="lg:col-span-3 bg-white/5 rounded-xl border border-border-muted p-6 relative min-h-[300px]">
+          <div className="lg:col-span-3 bg-white dark:bg-white/5 rounded-xl border border-slate-200 dark:border-border-muted p-6 relative min-h-[300px] transition-colors">
             {historyLoading ? (
               <div className="absolute inset-0 flex items-center justify-center">
                 <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
@@ -419,11 +419,11 @@ const DashboardPage: React.FC = () => {
                     <p className="text-[10px] text-slate-500 mt-1">{selectedSensorHistory.readings.length} data points collected</p>
                   </div>
                   <div className="text-right">
-                    <p className="text-2xl font-bold text-white">
+                    <p className="text-2xl font-bold text-slate-900 dark:text-white">
                       {selectedSensorHistory.readings.length > 0 ? selectedSensorHistory.readings[0].value.toFixed(1) : '--'}
-                      <span className="text-sm text-slate-500 ml-1">{selectedSensorHistory.unit}</span>
+                      <span className="text-sm text-slate-400 dark:text-slate-500 ml-1">{selectedSensorHistory.unit}</span>
                     </p>
-                    <p className="text-[10px] text-slate-500 uppercase">Latest Value</p>
+                    <p className="text-[10px] text-slate-400 dark:text-slate-500 uppercase">Latest Value</p>
                   </div>
                 </div>
 
@@ -447,18 +447,18 @@ const DashboardPage: React.FC = () => {
                 <div className="mt-6">
                   <p className="text-[10px] font-bold text-slate-500 uppercase mb-3">Recent Logs</p>
                   <div className="max-h-40 overflow-y-auto custom-scrollbar">
-                    <table className="w-full text-left text-[10px]">
+                    <table className="w-full text-left text-[11px]">
                       <thead>
-                        <tr className="text-slate-500 border-b border-white/5">
+                        <tr className="text-slate-500 dark:text-slate-400 border-b border-slate-100 dark:border-white/5 font-extrabold uppercase tracking-widest">
                           <th className="pb-2">Time</th>
                           <th className="pb-2 text-right">Value</th>
                         </tr>
                       </thead>
-                      <tbody className="divide-y divide-white/5">
+                      <tbody className="divide-y divide-slate-100 dark:divide-white/5">
                         {selectedSensorHistory.readings.slice(0, 50).map((r, i) => (
-                          <tr key={i} className="text-slate-300">
+                          <tr key={i} className="text-slate-600 dark:text-slate-300">
                             <td className="py-2">{new Date(r.recordedAt).toLocaleString()}</td>
-                            <td className="py-2 text-right font-medium text-white">{r.value.toFixed(2)} {selectedSensorHistory.unit}</td>
+                            <td className="py-2 text-right font-medium text-slate-900 dark:text-white">{r.value.toFixed(2)} {selectedSensorHistory.unit}</td>
                           </tr>
                         ))}
                       </tbody>
@@ -467,7 +467,7 @@ const DashboardPage: React.FC = () => {
                 </div>
               </>
             ) : (
-              <div className="absolute inset-0 flex items-center justify-center text-slate-500 text-sm">
+              <div className="absolute inset-0 flex items-center justify-center text-slate-400 dark:text-slate-500 text-sm">
                 Select a sensor from the left to view history
               </div>
             )}
@@ -476,28 +476,28 @@ const DashboardPage: React.FC = () => {
       </div>
 
       <div className="mb-4 flex items-center justify-between">
-        <h4 className="text-lg font-bold">Priority Sensor Alerts</h4>
+        <h4 className="text-lg font-bold text-slate-900 dark:text-white">Priority Sensor Alerts</h4>
         <Link to="/alerts" className="text-primary text-xs font-bold hover:underline">View All History</Link>
       </div>
-      <div className="bg-white/5 rounded-xl border border-border-muted overflow-hidden">
+      <div className="bg-white dark:bg-white/5 rounded-xl border border-slate-200 dark:border-border-muted overflow-hidden transition-colors shadow-sm">
         <table className="w-full text-left">
-          <thead className="bg-zinc-900/50 border-b border-border-muted">
+          <thead className="bg-slate-50 dark:bg-zinc-900/50 border-b border-slate-200 dark:border-border-muted text-slate-500 dark:text-slate-400">
             <tr>
-              <th className="px-6 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Sensor Name</th>
-              <th className="px-6 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest text-center">Value</th>
-              <th className="px-6 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Status</th>
-              <th className="px-6 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest text-right">Update</th>
+              <th className="px-6 py-4 text-[11px] font-extrabold uppercase tracking-widest text-inherit">Sensor Name</th>
+              <th className="px-6 py-4 text-[11px] font-extrabold uppercase tracking-widest text-inherit text-center">Value</th>
+              <th className="px-6 py-4 text-[11px] font-extrabold uppercase tracking-widest text-inherit">Status</th>
+              <th className="px-6 py-4 text-[11px] font-extrabold uppercase tracking-widest text-inherit text-right">Update</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-border-muted">
+          <tbody className="divide-y divide-slate-200 dark:divide-border-muted">
             {alertsLoading ? (
               <tr><td colSpan={4} className="px-6 py-8 text-center text-slate-500">Loading alerts...</td></tr>
             ) : recentAlerts.length > 0 ? (
               recentAlerts.map((alert) => (
-                <tr key={alert.id} className="hover:bg-white/5 transition-colors">
+                <tr key={alert.id} className="hover:bg-slate-50 dark:hover:bg-white/5 transition-colors">
                   <td className="px-6 py-4">
-                    <div className="font-medium text-sm">{alert.sensorName} ({alert.severity})</div>
-                    <div className="text-[10px] text-slate-500">{alert.location}</div>
+                    <div className="font-medium text-sm text-slate-900 dark:text-white">{alert.sensorName} ({alert.severity})</div>
+                    <div className="text-[10px] text-slate-500 dark:text-slate-400">{alert.location}</div>
                   </td>
                   <td className={`px-6 py-4 text-center font-bold ${alert.severity?.toLowerCase() === 'high' ? 'text-red-500' :
                     alert.severity?.toLowerCase() === 'medium' ? 'text-yellow-500' :

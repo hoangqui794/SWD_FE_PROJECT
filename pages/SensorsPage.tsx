@@ -172,23 +172,23 @@ const SensorsPage: React.FC = () => {
     <Layout title="Sensors Management" breadcrumb="Environment Overview">
       <div className="flex justify-between items-end mb-8">
         <div>
-          <h3 className="text-2xl font-bold tracking-tight">IoT Sensors Management</h3>
+          <h3 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-white">IoT Sensors Management</h3>
           <p className="text-slate-500 text-sm mt-1">Inventory and real-time status of environmental sensors.</p>
         </div>
         {canManage && (
-          <button onClick={handleOpenCreateModal} className="px-4 py-2 bg-white text-black hover:bg-zinc-200 transition-colors rounded text-xs font-bold flex items-center gap-2">
+          <button onClick={handleOpenCreateModal} className="px-4 py-2 bg-slate-900 dark:bg-white text-white dark:text-black hover:bg-black dark:hover:bg-slate-200 transition-all rounded shadow-lg shadow-slate-900/10 dark:shadow-none text-xs font-bold flex items-center gap-2">
             <span className="material-symbols-outlined text-sm">add</span> Register Sensor
           </button>
         )}
       </div>
-      <div className="bg-white/5 rounded-xl border border-border-muted overflow-hidden">
+      <div className="bg-white dark:bg-white/5 rounded-xl border border-slate-200 dark:border-border-muted overflow-hidden transition-colors shadow-sm">
         {/* Filter Section */}
-        <div className="p-4 border-b border-border-muted flex gap-4 items-center justify-between bg-zinc-900/30">
+        <div className="p-4 border-b border-slate-200 dark:border-border-muted flex gap-4 items-center justify-between bg-slate-50 dark:bg-zinc-900/30">
           <div className="flex gap-3">
             <select
               value={filterTypeId || ''}
               onChange={(e) => setFilterTypeId(e.target.value ? Number(e.target.value) : undefined)}
-              className="bg-zinc-900 border border-border-muted rounded px-4 py-2 text-xs text-white"
+              className="bg-white dark:bg-zinc-900 border border-slate-200 dark:border-border-muted rounded-lg px-4 py-2 text-xs text-slate-900 dark:text-white outline-none focus:ring-1 focus:ring-primary appearance-none transition-colors"
             >
               <option value="">All Types</option>
               <option value="1">Temperature</option>
@@ -196,8 +196,8 @@ const SensorsPage: React.FC = () => {
               <option value="3">Pressure</option>
             </select>
             <button
-              onClick={fetchSensors}
-              className="px-4 py-2 bg-zinc-800 hover:bg-zinc-700 border border-border-muted rounded text-xs font-bold text-white flex items-center gap-2"
+              onClick={() => fetchSensors()}
+              className="px-4 py-2 bg-white dark:bg-zinc-800 hover:bg-slate-50 dark:hover:bg-zinc-700 border border-slate-200 dark:border-border-muted rounded-lg text-xs font-bold text-slate-700 dark:text-white flex items-center gap-2 transition-all shadow-sm"
             >
               <span className="material-symbols-outlined text-sm">refresh</span>
               Refresh
@@ -229,38 +229,32 @@ const SensorsPage: React.FC = () => {
           /* Data Table */
           <div className="overflow-x-auto">
             <table className="w-full text-left">
-              <thead className="bg-zinc-900/50 border-b border-border-muted">
+              <thead className="bg-slate-50 dark:bg-zinc-900/50 border-b border-slate-200 dark:border-border-muted text-slate-500 dark:text-slate-400">
                 <tr>
-                  <th className="px-6 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Sensor ID</th>
-                  <th className="px-6 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Sensor Name</th>
-                  <th className="px-6 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Type</th>
-                  <th className="px-6 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Hub</th>
-
-                  <th className="px-6 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Status</th>
-                  {/* <th className="px-6 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Last Updated</th> */}
+                  <th className="px-6 py-4 text-[11px] font-extrabold uppercase tracking-widest text-inherit">Sensor ID</th>
+                  <th className="px-6 py-4 text-[11px] font-extrabold uppercase tracking-widest text-inherit">Sensor Name</th>
+                  <th className="px-6 py-4 text-[11px] font-extrabold uppercase tracking-widest text-inherit">Type</th>
+                  <th className="px-6 py-4 text-[11px] font-extrabold uppercase tracking-widest text-inherit">Hub</th>
+                  <th className="px-6 py-4 text-[11px] font-extrabold uppercase tracking-widest text-inherit">Status</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-border-muted">
+              <tbody className="divide-y divide-slate-100 dark:divide-border-muted">
                 {sensors.map((sensor) => (
-                  <tr key={sensor.sensorId} className="hover:bg-white/5 transition-colors">
-                    <td className="px-6 py-4 text-xs font-bold text-white whitespace-nowrap">{sensor.sensorId}</td>
-                    <td className="px-6 py-4 text-sm font-medium text-white">{sensor.sensorName}</td>
-                    <td className="px-6 py-4 text-xs text-slate-400">{sensor.typeName}</td>
-                    <td className="px-6 py-4 text-xs text-slate-400">{sensor.hubName}</td>
-
+                  <tr key={sensor.sensorId} className="hover:bg-slate-50 dark:hover:bg-white/5 transition-colors">
+                    <td className="px-6 py-4 text-xs font-bold text-slate-900 dark:text-white whitespace-nowrap">{sensor.sensorId}</td>
+                    <td className="px-6 py-4 text-sm font-medium text-slate-900 dark:text-white">{sensor.sensorName}</td>
+                    <td className="px-6 py-4 text-xs text-slate-500 dark:text-slate-400">{sensor.typeName}</td>
+                    <td className="px-6 py-4 text-xs text-slate-500 dark:text-slate-400">{sensor.hubName}</td>
                     <td className="px-6 py-4">
-                      <span className={`text-[10px] efont-bold uppercase ${getStatusColor(sensor.status)}`}>
+                      <span className={`text-[10px] font-bold uppercase ${getStatusColor(sensor.status)}`}>
                         {sensor.status}
                       </span>
                     </td>
-                    {/* <td className="px-6 py-4 text-xs text-slate-500">
-                      {sensor.lastUpdate ? new Date(sensor.lastUpdate).toLocaleString('vi-VN') : 'N/A'}
-                    </td> */}
                   </tr>
                 ))}
                 {sensors.length === 0 && (
                   <tr>
-                    <td colSpan={7} className="px-6 py-8 text-center text-slate-500 text-sm">
+                    <td colSpan={5} className="px-6 py-8 text-center text-slate-500 text-sm">
                       Không tìm thấy sensor nào.
                     </td>
                   </tr>
@@ -274,13 +268,13 @@ const SensorsPage: React.FC = () => {
       <Modal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} title="Register Sensor">
         <form onSubmit={handleCreateSensor} className="p-6 space-y-6">
           <div className="space-y-2">
-            <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
+            <label className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest">
               Sensor Name *
             </label>
             <input
               value={formData.name}
               onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-              className="w-full bg-zinc-900 border border-border-muted rounded px-4 py-2.5 text-sm text-white focus:ring-1 focus:ring-primary outline-none"
+              className="w-full bg-slate-50 dark:bg-zinc-900 border border-slate-200 dark:border-border-muted rounded-lg px-4 py-2.5 text-sm text-slate-910 dark:text-white focus:ring-1 focus:ring-primary outline-none transition-colors"
               placeholder="e.g. Temp-Sensor-01"
               required
             />
@@ -288,18 +282,18 @@ const SensorsPage: React.FC = () => {
 
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
-              <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
+              <label className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest">
                 Hub *
               </label>
               <select
                 value={formData.hubId}
                 onChange={(e) => setFormData({ ...formData, hubId: Number(e.target.value) })}
-                className="w-full bg-zinc-900 border border-border-muted rounded p-2.5 text-xs text-white focus:ring-1 focus:ring-primary outline-none"
+                className="w-full bg-slate-50 dark:bg-zinc-900 border border-slate-200 dark:border-border-muted rounded-lg p-2.5 text-xs text-slate-910 dark:text-white focus:ring-1 focus:ring-primary outline-none transition-colors appearance-none"
                 required
               >
                 <option value="0">Select Hub</option>
                 {hubs.map(hub => (
-                  <option key={hub.hubId} value={hub.hubId}>
+                  <option key={hub.hubId} value={hub.hubId} className="bg-white text-slate-900">
                     {hub.name} ({hub.siteName})
                   </option>
                 ))}
@@ -307,13 +301,13 @@ const SensorsPage: React.FC = () => {
             </div>
 
             <div className="space-y-2">
-              <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
+              <label className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest">
                 Type *
               </label>
               <select
                 value={formData.typeId}
                 onChange={(e) => setFormData({ ...formData, typeId: Number(e.target.value) })}
-                className="w-full bg-zinc-900 border border-border-muted rounded p-2.5 text-xs text-white focus:ring-1 focus:ring-primary outline-none"
+                className="w-full bg-slate-50 dark:bg-zinc-900 border border-slate-200 dark:border-border-muted rounded-lg p-2.5 text-xs text-slate-910 dark:text-white focus:ring-1 focus:ring-primary outline-none transition-colors appearance-none"
                 required
               >
                 <option value="1">Temperature</option>
@@ -335,14 +329,14 @@ const SensorsPage: React.FC = () => {
             <button
               type="button"
               onClick={() => setIsModalOpen(false)}
-              className="flex-1 px-4 py-2.5 border border-border-muted text-white rounded text-xs font-bold uppercase hover:bg-white/5 transition-colors"
+              className="flex-1 px-4 py-2.5 border border-slate-200 dark:border-border-muted text-slate-500 dark:text-slate-400 rounded-lg text-xs font-bold uppercase hover:bg-slate-50 dark:hover:bg-white/5 transition-colors"
               disabled={isSubmitting}
             >
               Cancel
             </button>
             <button
               type="submit"
-              className="flex-1 px-4 py-2.5 bg-primary text-white rounded text-xs font-bold uppercase hover:bg-primary/80 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              className="flex-1 px-4 py-2.5 bg-slate-900 dark:bg-white text-white dark:text-black rounded-lg text-xs font-bold uppercase shadow-lg shadow-slate-900/10 dark:shadow-none hover:bg-black dark:hover:bg-slate-200 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
               disabled={isSubmitting || hubs.length === 0}
             >
               {isSubmitting ? 'Creating...' : 'Register'}

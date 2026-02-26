@@ -16,7 +16,7 @@ const Layout: React.FC<LayoutProps> = ({ children, title, breadcrumb }) => {
   const toggleSidebar = () => setIsSidebarOpen(!isSidebarOpen);
 
   return (
-    <div className="flex min-h-screen bg-background-light dark:bg-background-dark text-slate-900 dark:text-white relative">
+    <div className="flex min-h-screen bg-slate-50 dark:bg-background-dark text-slate-900 dark:text-white relative transition-colors duration-300">
       <Sidebar
         isOpen={isSidebarOpen}
         onClose={() => setIsSidebarOpen(false)}
