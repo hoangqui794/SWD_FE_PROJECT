@@ -50,7 +50,7 @@ const DashboardPage: React.FC = () => {
 
     // Fetch alerts separately
     try {
-      const alerts = await getRecentAlerts(5);
+      const alerts = await getRecentAlerts(10);
       setRecentAlerts(alerts);
     } catch (error) {
       console.warn('Recent alerts API not available yet');
@@ -138,12 +138,12 @@ const DashboardPage: React.FC = () => {
           time: data.timestamp || new Date().toISOString()
         };
 
-        // Đẩy cảnh báo mới lên đầu danh sách và giữ lại tối đa 5 cái
+        // Đẩy cảnh báo mới lên đầu danh sách và giữ lại tối đa 10 cái
         setRecentAlerts(prev => {
           // Kiểm tra tránh trùng lặp nếu API và SignalR về cùng lúc
           const exists = prev.some(a => a.sensorName === newAlert.sensorName && a.time === newAlert.time);
           if (exists) return prev;
-          return [newAlert, ...prev].slice(0, 5);
+          return [newAlert, ...prev].slice(0, 10);
         });
       }
 

@@ -43,6 +43,45 @@ export const NotificationProvider: React.FC<NotificationProviderProps> = ({ chil
 
     console.log("Rendering NotificationProvider, current notification:", notification);
 
+    const getNotificationStyles = () => {
+        switch (notification?.type) {
+            case 'success':
+                return {
+                    bg: 'bg-emerald-600 dark:bg-emerald-500',
+                    text: 'text-white',
+                    border: 'border-emerald-500 dark:border-emerald-400',
+                    label: '✅ SUCCESS',
+                    icon: 'check_circle'
+                };
+            case 'error':
+                return {
+                    bg: 'bg-red-600 dark:bg-red-500',
+                    text: 'text-white',
+                    border: 'border-red-500 dark:border-red-400',
+                    label: '🚨 CRITICAL',
+                    icon: 'error'
+                };
+            case 'warning':
+                return {
+                    bg: 'bg-amber-500 dark:bg-amber-400',
+                    text: 'text-white',
+                    border: 'border-amber-400 dark:border-amber-300',
+                    label: '⚠️ WARNING',
+                    icon: 'warning'
+                };
+            default:
+                return {
+                    bg: 'bg-blue-600 dark:bg-blue-500',
+                    text: 'text-white',
+                    border: 'border-blue-500 dark:border-blue-400',
+                    label: 'ℹ️ INFO',
+                    icon: 'info'
+                };
+        }
+    };
+
+    const styles = getNotificationStyles();
+
     return (
         <NotificationContext.Provider value={{ showNotification }}>
             {children}
@@ -50,35 +89,46 @@ export const NotificationProvider: React.FC<NotificationProviderProps> = ({ chil
                 <div
                     style={{
                         position: 'fixed',
-                        bottom: '40px',
-                        right: '40px',
+                        bottom: '24px',
+                        right: '24px',
                         zIndex: 999999,
-                        minWidth: '320px'
                     }}
-                    className={`flex items-center gap-4 px-6 py-4 rounded-xl shadow-2xl border transition-all duration-300 ${notification.type === 'success' ? 'bg-emerald-50 dark:bg-emerald-500/10 border-emerald-200 dark:border-emerald-500/20 text-emerald-700 dark:text-emerald-400' :
-                        notification.type === 'error' ? 'bg-red-50 dark:bg-red-500/10 border-red-200 dark:border-red-500/20 text-red-700 dark:text-red-400' :
-                            notification.type === 'warning' ? 'bg-amber-50 dark:bg-amber-500/10 border-amber-200 dark:border-amber-500/20 text-amber-700 dark:text-amber-400' :
-                                'bg-blue-50 dark:bg-blue-500/10 border-blue-200 dark:border-blue-500/20 text-blue-700 dark:text-blue-400'
-                        }`}
+                    className={`flex items-start gap-4 p-4 rounded-xl shadow-2xl border transition-all duration-500 transform translate-y-0 animate-[slideIn_0.3s_ease-out] ${styles.bg} ${styles.text} ${styles.border} min-w-[320px] max-w-md`}
                 >
+                    <div className="mt-1">
+                        <span className="material-symbols-outlined text-xl">{styles.icon}</span>
+                    </div>
                     <div className="flex-1">
-                        <h4 className="font-black uppercase text-[10px] tracking-[0.2em] mb-1 opacity-80">
-                            {notification.type === 'error' ? '🚨 CRITICAL' :
-                                notification.type === 'warning' ? '⚠️ WARNING' : 'ℹ️ INFO'}
+                        <h4 className="font-extrabold uppercase text-[9px] tracking-[0.15em] mb-0.5 opacity-90">
+                            {styles.label}
                         </h4>
-                        <p className="text-sm font-bold">{notification.message}</p>
+                        <p className="text-sm font-medium leading-relaxed">{notification.message}</p>
                     </div>
                     <button
-                        onClick={() => {
-                            console.log("Closing notification manually");
-                            setNotification(null);
-                        }}
-                        className="hover:bg-black/5 dark:hover:bg-white/10 rounded-full p-2 transition-colors"
+                        onClick={() => setNotification(null)}
+                        className="hover:bg-white/10 rounded-lg p-1 transition-colors -mr-1"
                     >
-                        <span className="material-symbols-outlined text-lg">close</span>
+                        <span className="material-symbols-outlined text-sm">close</span>
                     </button>
+
+                    {/* Progress bar for auto-close */}
+                    <div className="absolute bottom-0 left-0 h-1 bg-white/20 rounded-b-xl overflow-hidden" style={{ width: '100%' }}>
+                        <div className="h-full bg-white/40 animate-[progress_3s_linear]" />
+                    </div>
                 </div>
             )}
+
+            <style dangerouslySetInnerHTML={{
+                __html: `
+                @keyframes slideIn {
+                    from { transform: translateX(100%); opacity: 0; }
+                    to { transform: translateX(0); opacity: 1; }
+                }
+                @keyframes progress {
+                    from { width: 100%; }
+                    to { width: 0%; }
+                }
+            `}} />
         </NotificationContext.Provider>
     );
 };
