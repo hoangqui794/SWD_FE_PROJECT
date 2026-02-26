@@ -9,11 +9,13 @@ import { alertService, AlertRule, CreateAlertRuleRequest } from '../services/ale
 import { notificationService, NotificationHistoryItem } from '../services/notificationService';
 import { sensorService, Sensor } from '../services/sensorService';
 import { signalRService } from '../services/signalrService';
+import { siteService, Site } from '../services/siteService';
 
 const AlertsPage: React.FC = () => {
     const { hasRole } = useAuth();
     const { showNotification } = useNotification();
     const canManage = hasRole(['ADMIN', 'MANAGER']);
+    const isAdmin = hasRole(['ADMIN']);
 
     // Tabs: 'history' or 'rules'
     const [activeTab, setActiveTab] = useState<'history' | 'rules'>('history');
@@ -30,6 +32,8 @@ const AlertsPage: React.FC = () => {
     const [totalCount, setTotalCount] = useState(0);
     const [alertToDelete, setAlertToDelete] = useState<number | null>(null);
     const [resolveConfirmId, setResolveConfirmId] = useState<number | null>(null);
+    const [sites, setSites] = useState<Site[]>([]);
+    const [selectedSiteId, setSelectedSiteId] = useState<number>(0);
 
     // --- Alert Rules State ---
     const [rules, setRules] = useState<AlertRule[]>([]);
@@ -59,6 +63,7 @@ const AlertsPage: React.FC = () => {
             const response = await notificationService.getHistory({
                 page: currentPage,
                 pageSize: pageSize,
+                siteId: selectedSiteId > 0 ? selectedSiteId : undefined
             });
 
             let data = response.data;
@@ -107,17 +112,27 @@ const AlertsPage: React.FC = () => {
         }
     };
 
+    const fetchSites = async () => {
+        try {
+            const data = await siteService.getAll();
+            setSites(data);
+        } catch (error) {
+            console.error("Failed to fetch sites", error);
+        }
+    };
+
     // --- Effects ---
 
     // Fetch data based on active tab
     useEffect(() => {
+        fetchSites(); // Always fetch sites for the filter
         if (activeTab === 'history') {
             fetchAlerts();
         } else {
             fetchRules();
             fetchSensors(); // Load sensors for dropdown
         }
-    }, [activeTab, searchTerm, currentPage]);
+    }, [activeTab, searchTerm, currentPage, selectedSiteId]);
 
     // Real-time updates via SignalR
     useEffect(() => {
@@ -320,15 +335,35 @@ const AlertsPage: React.FC = () => {
                 {/* TAB 1: HISTORY TABLE */}
                 {activeTab === 'history' && !isLoading && (
                     <>
-                        <div className="p-4 border-b border-slate-200 dark:border-border-muted flex gap-4 items-center justify-between bg-slate-50/50 dark:bg-zinc-900/30">
-                            <div className="relative w-full max-w-sm">
-                                <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm">search</span>
-                                <input
-                                    value={searchTerm}
-                                    onChange={(e) => { setSearchTerm(e.target.value); setCurrentPage(1); }}
-                                    className="w-full bg-white dark:bg-background-dark border border-slate-200 dark:border-border-muted text-xs rounded-lg pl-10 focus:ring-1 focus:ring-primary h-9 text-slate-900 dark:text-white transition-colors"
-                                    placeholder="Search by sensor name..."
-                                />
+                        <div className="p-4 border-b border-slate-200 dark:border-border-muted flex flex-wrap gap-4 items-center justify-between bg-slate-50/50 dark:bg-zinc-900/30">
+                            <div className="flex flex-wrap gap-4 items-center w-full md:w-auto">
+                                <div className="relative w-full max-w-sm">
+                                    <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm">search</span>
+                                    <input
+                                        value={searchTerm}
+                                        onChange={(e) => { setSearchTerm(e.target.value); setCurrentPage(1); }}
+                                        className="w-full bg-white dark:bg-background-dark border border-slate-200 dark:border-border-muted text-xs rounded-lg pl-10 focus:ring-1 focus:ring-primary h-9 text-slate-900 dark:text-white transition-colors"
+                                        placeholder="Search by sensor name..."
+                                    />
+                                </div>
+
+                                {isAdmin && (
+                                    <div className="relative w-full md:w-64">
+                                        <select
+                                            value={selectedSiteId}
+                                            onChange={(e) => { setSelectedSiteId(Number(e.target.value)); setCurrentPage(1); }}
+                                            className="w-full bg-white dark:bg-background-dark border border-slate-200 dark:border-border-muted text-xs rounded-lg px-3 focus:ring-1 focus:ring-primary h-9 text-slate-900 dark:text-white transition-colors appearance-none"
+                                        >
+                                            <option value={0}>All Sites</option>
+                                            {sites.map(site => (
+                                                <option key={site.siteId} value={site.siteId}>
+                                                    {site.name}
+                                                </option>
+                                            ))}
+                                        </select>
+                                        <span className="material-symbols-outlined absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none text-sm">expand_more</span>
+                                    </div>
+                                )}
                             </div>
                             <div className="flex items-center gap-3 text-xs text-slate-500">
                                 Showing {totalCount > 0 ? ((currentPage - 1) * pageSize) + 1 : 0}-{Math.min(currentPage * pageSize, totalCount)} of {totalCount}
@@ -339,7 +374,7 @@ const AlertsPage: React.FC = () => {
                         </div>
 
                         <div className="overflow-x-auto">
-                            <table className="w-full text-left whitespace-nowrap">
+                            <table className="w-full text-left">
                                 <thead className="bg-slate-50 dark:bg-zinc-900/50 border-b border-slate-200 dark:border-border-muted text-slate-500 dark:text-slate-400">
                                     <tr>
                                         <th className="px-6 py-4 text-[11px] font-extrabold uppercase tracking-widest text-inherit">Time</th>
@@ -362,7 +397,7 @@ const AlertsPage: React.FC = () => {
                                                 </div>
                                             </td>
                                             <td className="px-6 py-4">
-                                                <span className="text-xs text-slate-600 dark:text-slate-300 max-w-xs block truncate" title={alert.message}>
+                                                <span className="text-xs text-slate-600 dark:text-slate-300 whitespace-normal min-w-[300px] block" title={alert.message}>
                                                     {alert.message}
                                                 </span>
                                             </td>
