@@ -59,7 +59,7 @@ export const sensorService = {
      * @param id - ID của sensor cần cập nhật
      * @param data - Dữ liệu mới
      */
-    update: async (id: number, data: Partial<Omit<Sensor, 'sensorId' | 'hubName'>>): Promise<void> => {
+    update: async (id: number, data: Partial<CreateSensorRequest>): Promise<void> => {
         await apiClient.put(`/api/sensors/${id}`, data);
     },
 

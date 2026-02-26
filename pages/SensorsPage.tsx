@@ -32,6 +32,8 @@ const SensorsPage: React.FC = () => {
     hubId: 0
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [editingSensorId, setEditingSensorId] = useState<number | null>(null);
+  const [deleteTargetId, setDeleteTargetId] = useState<number | null>(null);
 
   // Fetch hubs and setup SignalR on mount
   useEffect(() => {
@@ -98,9 +100,9 @@ const SensorsPage: React.FC = () => {
   };
 
   /**
-   * Hàm xử lý tạo sensor mới
+   * Hàm xử lý tạo hoặc cập nhật sensor
    */
-  const handleCreateSensor = async (e: React.FormEvent) => {
+  const handleSaveSensor = async (e: React.FormEvent) => {
     e.preventDefault();
 
     // Validation
@@ -115,23 +117,35 @@ const SensorsPage: React.FC = () => {
 
     setIsSubmitting(true);
     try {
-      await sensorService.create(formData);
+      if (editingSensorId) {
+        // Cập nhật sensor
+        await sensorService.update(editingSensorId, {
+          name: formData.name,
+          typeId: formData.typeId,
+          hubId: formData.hubId
+        });
+        showNotification('Cập nhật sensor thành công!', 'success');
+      } else {
+        // Tạo sensor mới
+        await sensorService.create(formData);
+        showNotification('Tạo sensor thành công!', 'success');
+      }
 
-      // Reset form
+      // Reset form & state
       setFormData({
         name: '',
         typeId: 1,
         hubId: 0
       });
+      setEditingSensorId(null);
 
       // Đóng modal và refresh danh sách
       setIsModalOpen(false);
       fetchSensors();
 
-      showNotification('Tạo sensor thành công!', 'success');
     } catch (error: any) {
-      console.error("Failed to create sensor", error);
-      const errorMsg = error.response?.data?.message || error.message || 'Không thể tạo sensor';
+      console.error("Failed to save sensor", error);
+      const errorMsg = error.response?.data?.message || error.message || 'Không thể lưu sensor';
       showNotification(`Lỗi: ${errorMsg}`, 'error');
     } finally {
       setIsSubmitting(false);
@@ -139,13 +153,45 @@ const SensorsPage: React.FC = () => {
   };
 
   /**
+   * Hàm xử lý xóa sensor
+   */
+  const confirmDeleteSensor = async () => {
+    if (!deleteTargetId) return;
+
+    try {
+      await sensorService.delete(deleteTargetId);
+      showNotification('Xóa sensor thành công!', 'success');
+      setSensors(sensors.filter(s => s.sensorId !== deleteTargetId));
+    } catch (error: any) {
+      console.error("Failed to delete sensor", error);
+      showNotification('Lỗi khi xóa sensor: ' + (error.response?.data?.message || error.message), 'error');
+    } finally {
+      setDeleteTargetId(null);
+    }
+  };
+
+  /**
    * Hàm mở modal tạo sensor mới
    */
   const handleOpenCreateModal = () => {
+    setEditingSensorId(null);
     setFormData({
       name: '',
       typeId: 1,
       hubId: hubs.length > 0 ? hubs[0].hubId : 0
+    });
+    setIsModalOpen(true);
+  };
+
+  /**
+   * Hàm mở modal chỉnh sửa sensor
+   */
+  const handleOpenEditModal = (sensor: Sensor) => {
+    setEditingSensorId(sensor.sensorId);
+    setFormData({
+      name: sensor.sensorName,
+      typeId: sensor.typeId,
+      hubId: sensor.hubId
     });
     setIsModalOpen(true);
   };
@@ -236,6 +282,7 @@ const SensorsPage: React.FC = () => {
                   <th className="px-6 py-4 text-[11px] font-extrabold uppercase tracking-widest text-inherit">Type</th>
                   <th className="px-6 py-4 text-[11px] font-extrabold uppercase tracking-widest text-inherit">Hub</th>
                   <th className="px-6 py-4 text-[11px] font-extrabold uppercase tracking-widest text-inherit">Status</th>
+                  {canManage && <th className="px-6 py-4 text-[11px] font-extrabold uppercase tracking-widest text-inherit text-right">Actions</th>}
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 dark:divide-border-muted">
@@ -250,6 +297,24 @@ const SensorsPage: React.FC = () => {
                         {sensor.status}
                       </span>
                     </td>
+                    {canManage && (
+                      <td className="px-6 py-4 text-right flex justify-end gap-2">
+                        <button
+                          onClick={() => handleOpenEditModal(sensor)}
+                          className="text-slate-400 hover:text-primary dark:hover:text-white transition-colors"
+                          title="Edit"
+                        >
+                          <span className="material-symbols-outlined text-sm">edit</span>
+                        </button>
+                        <button
+                          onClick={() => setDeleteTargetId(sensor.sensorId)}
+                          className="text-slate-400 hover:text-red-500 transition-colors"
+                          title="Delete"
+                        >
+                          <span className="material-symbols-outlined text-sm">delete</span>
+                        </button>
+                      </td>
+                    )}
                   </tr>
                 ))}
                 {sensors.length === 0 && (
@@ -265,8 +330,8 @@ const SensorsPage: React.FC = () => {
         )}
       </div>
 
-      <Modal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} title="Register Sensor">
-        <form onSubmit={handleCreateSensor} className="p-6 space-y-6">
+      <Modal isOpen={isModalOpen} onClose={() => { setIsModalOpen(false); setEditingSensorId(null); }} title={editingSensorId ? "Edit Sensor" : "Register Sensor"}>
+        <form onSubmit={handleSaveSensor} className="p-6 space-y-6">
           <div className="space-y-2">
             <label className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest">
               Sensor Name *
@@ -328,7 +393,7 @@ const SensorsPage: React.FC = () => {
           <div className="pt-4 flex gap-3">
             <button
               type="button"
-              onClick={() => setIsModalOpen(false)}
+              onClick={() => { setIsModalOpen(false); setEditingSensorId(null); }}
               className="flex-1 px-4 py-2.5 border border-slate-200 dark:border-border-muted text-slate-500 dark:text-slate-400 rounded-lg text-xs font-bold uppercase hover:bg-slate-50 dark:hover:bg-white/5 transition-colors"
               disabled={isSubmitting}
             >
@@ -339,10 +404,39 @@ const SensorsPage: React.FC = () => {
               className="flex-1 px-4 py-2.5 bg-slate-900 dark:bg-white text-white dark:text-black rounded-lg text-xs font-bold uppercase shadow-lg shadow-slate-900/10 dark:shadow-none hover:bg-black dark:hover:bg-slate-200 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
               disabled={isSubmitting || hubs.length === 0}
             >
-              {isSubmitting ? 'Creating...' : 'Register'}
+              {isSubmitting ? (editingSensorId ? 'Saving...' : 'Creating...') : (editingSensorId ? 'Save Changes' : 'Register')}
             </button>
           </div>
         </form>
+      </Modal>
+
+      {/* Delete Confirmation Modal */}
+      <Modal isOpen={!!deleteTargetId} onClose={() => setDeleteTargetId(null)} title="Confirm Deletion">
+        <div className="p-6 space-y-4">
+          <div className="flex flex-col items-center justify-center text-center space-y-2 py-4">
+            <div className="w-12 h-12 rounded-full bg-red-500/10 flex items-center justify-center mb-2">
+              <span className="material-symbols-outlined text-red-500 text-2xl">warning</span>
+            </div>
+            <h4 className="text-lg font-bold text-slate-900 dark:text-white">Delete Sensor?</h4>
+            <p className="text-slate-500 dark:text-slate-400 text-sm">
+              Are you sure you want to delete this sensor? This action cannot be undone.
+            </p>
+          </div>
+          <div className="flex gap-3 pt-2">
+            <button
+              onClick={() => setDeleteTargetId(null)}
+              className="flex-1 px-6 py-2.5 border border-slate-200 dark:border-border-muted text-slate-500 dark:text-slate-400 rounded-lg text-xs font-bold uppercase hover:bg-slate-50 dark:hover:bg-white/5 transition-colors"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={confirmDeleteSensor}
+              className="flex-1 px-6 py-2.5 bg-red-500 text-white rounded-lg text-xs font-bold uppercase hover:bg-red-600 shadow-lg shadow-red-500/20 transition-all"
+            >
+              Yes, Delete
+            </button>
+          </div>
+        </div>
       </Modal>
     </Layout >
   );
