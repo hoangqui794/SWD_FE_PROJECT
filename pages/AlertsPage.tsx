@@ -5,8 +5,10 @@ import Modal from '../components/Modal';
 import { useAuth } from '../context/AuthContext';
 import { useNotification } from '../context/NotificationContext';
 
-import { alertService, Alert, AlertRule, CreateAlertRuleRequest } from '../services/alertService';
+import { alertService, AlertRule, CreateAlertRuleRequest } from '../services/alertService';
+import { notificationService, NotificationHistoryItem } from '../services/notificationService';
 import { sensorService, Sensor } from '../services/sensorService';
+import { signalRService } from '../services/signalrService';
 
 const AlertsPage: React.FC = () => {
     const { hasRole } = useAuth();
@@ -21,8 +23,7 @@ const AlertsPage: React.FC = () => {
     const [error, setError] = useState<string | null>(null);
 
     // --- Alert History State ---
-    const [alerts, setAlerts] = useState<Alert[]>([]);
-    const [filterStatus, setFilterStatus] = useState<'All' | 'Active' | 'Resolved'>('All');
+    const [alerts, setAlerts] = useState<NotificationHistoryItem[]>([]);
     const [searchTerm, setSearchTerm] = useState("");
     const [currentPage, setCurrentPage] = useState(1);
     const [pageSize] = useState(20);
@@ -49,41 +50,32 @@ const AlertsPage: React.FC = () => {
     // Derived state
     const totalPages = Math.ceil(totalCount / pageSize);
 
-    // --- Effects ---
-
-
-
-    // Fetch data based on active tab
-    useEffect(() => {
-        if (activeTab === 'history') {
-            fetchAlerts();
-        } else {
-            fetchRules();
-            fetchSensors(); // Load sensors for dropdown
-        }
-    }, [activeTab, filterStatus, searchTerm, currentPage]);
-
-    // --- Helpers ---
-
-
-
-    const getSeverityStyle = (severity: string) => {
-        const s = (severity || '').toLowerCase();
-        if (s === 'high' || s === 'critical') return 'bg-red-500/10 border-red-500 text-red-500';
-        if (s === 'medium' || s === 'warning') return 'bg-yellow-500/10 border-yellow-500 text-yellow-500';
-        if (s === 'low' || s === 'info') return 'bg-blue-500/10 border-blue-500 text-blue-500';
-        return 'bg-slate-500/10 border-slate-500 text-slate-500';
-    };
-
     // --- API Calls ---
 
     const fetchAlerts = async () => {
         setIsLoading(true);
         setError(null);
         try {
-            const data = await alertService.getAll(filterStatus, searchTerm);
+            const response = await notificationService.getHistory({
+                page: currentPage,
+                pageSize: pageSize,
+            });
+
+            let data = response.data;
+
+            // Client-side filtering for search term if needed (though API usually handles it, 
+            // but for flexibility with detailed messages we keep it)
+            if (searchTerm) {
+                const term = searchTerm.toLowerCase();
+                data = data.filter(a =>
+                    a.sensorName.toLowerCase().includes(term) ||
+                    a.message.toLowerCase().includes(term) ||
+                    a.location.toLowerCase().includes(term)
+                );
+            }
+
             setAlerts(data);
-            setTotalCount(data.length);
+            setTotalCount(response.totalCount);
         } catch (error) {
             console.error("Failed to fetch alerts", error);
             setError('Failed to load alerts history.');
@@ -113,6 +105,49 @@ const AlertsPage: React.FC = () => {
         } catch (error) {
             console.error("Failed to fetch sensors", error);
         }
+    };
+
+    // --- Effects ---
+
+    // Fetch data based on active tab
+    useEffect(() => {
+        if (activeTab === 'history') {
+            fetchAlerts();
+        } else {
+            fetchRules();
+            fetchSensors(); // Load sensors for dropdown
+        }
+    }, [activeTab, searchTerm, currentPage]);
+
+    // Real-time updates via SignalR
+    useEffect(() => {
+        const handleRealtimeUpdate = (data: any) => {
+            console.log("AlertsPage: SignalR update received", data);
+            // Refresh current view
+            if (activeTab === 'history') {
+                fetchAlerts();
+            } else {
+                fetchRules();
+            }
+        };
+
+        signalRService.on("ReceiveAlertNotification", handleRealtimeUpdate);
+        signalRService.on("receivealertnotification", handleRealtimeUpdate);
+
+        return () => {
+            signalRService.off("ReceiveAlertNotification", handleRealtimeUpdate);
+            signalRService.off("receivealertnotification", handleRealtimeUpdate);
+        };
+    }, [activeTab, currentPage, searchTerm]);
+
+    // --- Helpers ---
+
+    const getSeverityStyle = (severity: string) => {
+        const s = (severity || '').toLowerCase();
+        if (s === 'high' || s === 'critical') return 'bg-red-500/10 border-red-500 text-red-500';
+        if (s === 'medium' || s === 'warning') return 'bg-yellow-500/10 border-yellow-500 text-yellow-500';
+        if (s === 'low' || s === 'info') return 'bg-blue-500/10 border-blue-500 text-blue-500';
+        return 'bg-slate-500/10 border-slate-500 text-slate-500';
     };
 
     // --- Handlers: History ---
@@ -208,12 +243,6 @@ const AlertsPage: React.FC = () => {
         }
     };
 
-    // --- Pagination Logic ---
-    const getPaginatedAlerts = () => {
-        const startIndex = (currentPage - 1) * pageSize;
-        return alerts.slice(startIndex, startIndex + pageSize);
-    };
-
     const goToPage = (page: number) => {
         if (page >= 1 && page <= totalPages) setCurrentPage(page);
     };
@@ -250,32 +279,15 @@ const AlertsPage: React.FC = () => {
                     </div>
                 </div>
 
-                {/* Filters (Only for History) */}
-                {activeTab === 'history' && (
-                    <div className="flex flex-wrap items-center justify-between gap-4">
-                        <div className="flex gap-2">
-                            {['All', 'Active', 'Resolved'].map((status) => (
-                                <button
-                                    key={status}
-                                    onClick={() => { setFilterStatus(status as any); setCurrentPage(1); }}
-                                    className={`px-4 py-2 rounded-lg text-xs font-bold uppercase transition-all ${filterStatus === status
-                                        ? 'bg-slate-900 dark:bg-white text-white dark:text-black shadow-lg shadow-slate-900/10 dark:shadow-white/10'
-                                        : 'bg-white dark:bg-white/5 text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-white/10 border border-slate-200 dark:border-transparent'
-                                        }`}
-                                >
-                                    {status}
-                                </button>
-                            ))}
-                        </div>
-                        {/* Create Rule Button (Shortcut) */}
-                        {canManage && (
-                            <button
-                                onClick={() => { setActiveTab('rules'); setIsRuleModalOpen(true); }}
-                                className="md:hidden px-4 py-2 bg-primary/10 text-primary border border-primary/50 rounded text-xs font-bold uppercase hover:bg-primary/20 transition-all"
-                            >
-                                + New Rule
-                            </button>
-                        )}
+                {/* Create Rule Button (Shortcut for Mobile) */}
+                {activeTab === 'history' && canManage && (
+                    <div className="flex md:hidden justify-end">
+                        <button
+                            onClick={() => { setActiveTab('rules'); setIsRuleModalOpen(true); }}
+                            className="px-4 py-2 bg-primary/10 text-primary border border-primary/50 rounded text-xs font-bold uppercase hover:bg-primary/20 transition-all"
+                        >
+                            + New Rule
+                        </button>
                     </div>
                 )}
 
@@ -332,18 +344,28 @@ const AlertsPage: React.FC = () => {
                                     <tr>
                                         <th className="px-6 py-4 text-[11px] font-extrabold uppercase tracking-widest text-inherit">Time</th>
                                         <th className="px-6 py-4 text-[11px] font-extrabold uppercase tracking-widest text-inherit">Sensor</th>
+                                        <th className="px-6 py-4 text-[11px] font-extrabold uppercase tracking-widest text-inherit">Message</th>
                                         <th className="px-6 py-4 text-[11px] font-extrabold uppercase tracking-widest text-inherit">Severity</th>
                                         <th className="px-6 py-4 text-[11px] font-extrabold uppercase tracking-widest text-inherit">Status</th>
-                                        {canManage && <th className="px-6 py-4 text-[11px] font-extrabold uppercase tracking-widest text-inherit text-right">Actions</th>}
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-slate-100 dark:divide-border-muted">
-                                    {getPaginatedAlerts().map((alert) => (
+                                    {alerts.map((alert) => (
                                         <tr key={alert.id} className="hover:bg-slate-50 dark:hover:bg-white/5 transition-colors">
                                             <td className="px-6 py-4 text-xs font-mono text-slate-500 dark:text-slate-300">
                                                 {new Date(alert.time).toLocaleString('vi-VN')}
                                             </td>
-                                            <td className="px-6 py-4 text-xs font-bold text-slate-900 dark:text-white uppercase tracking-tight">{alert.sensor_name}</td>
+                                            <td className="px-6 py-4">
+                                                <div className="flex flex-col">
+                                                    <span className="text-xs font-bold text-slate-900 dark:text-white uppercase tracking-tight">{alert.sensorName}</span>
+                                                    <span className="text-[10px] text-slate-500 lowercase">{alert.location}</span>
+                                                </div>
+                                            </td>
+                                            <td className="px-6 py-4">
+                                                <span className="text-xs text-slate-600 dark:text-slate-300 max-w-xs block truncate" title={alert.message}>
+                                                    {alert.message}
+                                                </span>
+                                            </td>
                                             <td className="px-6 py-4">
                                                 <span className={`px-2 py-1 border text-[10px] font-bold uppercase rounded-md shadow-sm ${getSeverityStyle(alert.severity)}`}>
                                                     {alert.severity}
@@ -355,20 +377,6 @@ const AlertsPage: React.FC = () => {
                                                     {alert.status}
                                                 </span>
                                             </td>
-                                            {canManage && (
-                                                <td className="px-6 py-4 text-right">
-                                                    <div className="flex items-center justify-end gap-2">
-                                                        {alert.status === 'Active' && (
-                                                            <button onClick={() => initiateResolve(alert.id)} className="px-3 py-1 bg-green-500/10 text-green-500 border border-green-500/50 rounded hover:bg-green-500/20 text-[10px] font-bold uppercase transition-colors">
-                                                                Resolve
-                                                            </button>
-                                                        )}
-                                                        <button onClick={() => handleDeleteAlert(alert.id)} className="p-1 text-slate-500 hover:text-red-500 transition-colors">
-                                                            <span className="material-symbols-outlined text-sm">delete</span>
-                                                        </button>
-                                                    </div>
-                                                </td>
-                                            )}
                                         </tr>
                                     ))}
                                     {alerts.length === 0 && (
@@ -584,8 +592,6 @@ const AlertsPage: React.FC = () => {
                     </div>
                 </form>
             </Modal>
-
-            {/* 2. Create Rule Modal */}
         </Layout>
     );
 };
