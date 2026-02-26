@@ -37,13 +37,16 @@ const Header: React.FC<HeaderProps> = ({ title, breadcrumb, onMenuClick }) => {
 
       <div className="flex items-center gap-3 md:gap-6">
         <ThemeToggle />
-        <div className="flex items-center gap-3 md:pr-6 md:border-r border-slate-200 dark:border-border-muted">
+        <div
+          onClick={() => navigate('/profile')}
+          className="flex items-center gap-3 md:pr-6 md:border-r border-slate-200 dark:border-border-muted cursor-pointer group/user"
+        >
           <div className="text-right hidden sm:block">
-            <p className="text-xs font-bold leading-none text-slate-900 dark:text-white">{user?.name || 'User'}</p>
+            <p className="text-xs font-bold leading-none text-slate-900 dark:text-white group-hover/user:text-primary transition-colors">{user?.name || 'User'}</p>
             <p className="text-[10px] text-primary font-medium mt-1">{user?.role || 'Guest'}</p>
           </div>
           <div
-            className="w-8 h-8 md:w-10 md:h-10 rounded-full bg-center bg-cover border border-slate-200 dark:border-border-muted shadow-sm"
+            className="w-8 h-8 md:w-10 md:h-10 rounded-full bg-center bg-cover border border-slate-200 dark:border-border-muted shadow-sm group-hover/user:ring-2 group-hover/user:ring-primary/20 transition-all"
             style={{ backgroundImage: `url('https://ui-avatars.com/api/?name=${encodeURIComponent(user?.name || 'User')}&background=random')` }}
           ></div>
         </div>

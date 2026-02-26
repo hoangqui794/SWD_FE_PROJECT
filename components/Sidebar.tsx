@@ -26,6 +26,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
     { path: "/alerts", icon: "notifications", label: "Alerts", menu: "Main Menu", roles: ['ADMIN', 'MANAGER', 'STAFF'] as Role[] },
     { path: "/organizations", icon: "domain", label: "Organizations", menu: "Administration", roles: ['ADMIN'] as Role[] },
     { path: "/users", icon: "manage_accounts", label: "Users", menu: "Administration", roles: ['ADMIN'] as Role[] },
+    { path: "/profile", icon: "person", label: "Profile", menu: "Settings", roles: [] as Role[] },
   ];
 
   const isActive = (path: string) => location.pathname === path;
@@ -89,6 +90,24 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
           <>
             {isExpanded && <div className="px-4 mt-8 mb-2 text-[10px] font-bold text-slate-400 uppercase tracking-widest whitespace-nowrap transition-opacity duration-300">Administration</div>}
             {navItems.filter(item => item.menu === "Administration" && checkPermission(item.roles)).map(item => (
+              <Link
+                key={item.path}
+                to={item.path}
+                onClick={onClose}
+                className={`flex items-center gap-3 px-6 py-3 transition-all ${isActive(item.path) ? 'sidebar-item-active' : 'sidebar-item-inactive'} ${!isExpanded ? 'justify-center' : ''}`}
+                title={!isExpanded ? item.label : ''}
+              >
+                <span className="material-symbols-outlined">{item.icon}</span>
+                {isExpanded && <span className="text-sm font-medium whitespace-nowrap transition-opacity duration-300 animate-in fade-in">{item.label}</span>}
+              </Link>
+            ))}
+          </>
+        )}
+
+        {navItems.some(item => item.menu === "Settings" && checkPermission(item.roles)) && (
+          <>
+            {isExpanded && <div className="px-4 mt-8 mb-2 text-[10px] font-bold text-slate-400 uppercase tracking-widest whitespace-nowrap transition-opacity duration-300">Settings</div>}
+            {navItems.filter(item => item.menu === "Settings" && checkPermission(item.roles)).map(item => (
               <Link
                 key={item.path}
                 to={item.path}

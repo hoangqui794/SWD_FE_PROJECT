@@ -15,5 +15,10 @@ export const authService = {
     getCurrentUser: async (): Promise<User> => {
         const response = await apiClient.get<User>('/api/auth/me');
         return response.data;
+    },
+
+    changePassword: async (data: any): Promise<{ message: string }> => {
+        const response = await apiClient.post<{ message: string }>('/api/auth/change-password', data);
+        return response.data;
     }
 };
