@@ -19,13 +19,7 @@ export interface LoginCredentials {
     password?: string;
 }
 
-export interface RegisterCredentials {
-    orgId: number;
-    siteId: number;
-    fullName: string;
-    email: string;
-    roleId: number;
-}
+
 
 export interface AuthResponse {
     token: string;

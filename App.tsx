@@ -1,7 +1,7 @@
 import React from 'react';
 import { HashRouter, Routes, Route, Navigate } from 'react-router-dom';
 import LoginPage from './pages/LoginPage';
-import RegisterPage from './pages/RegisterPage';
+
 import DashboardPage from './pages/DashboardPage';
 import SitesPage from './pages/SitesPage';
 import HubsPage from './pages/HubsPage';
@@ -26,7 +26,7 @@ const App: React.FC = () => {
             <Routes>
               {/* Public Routes */}
               <Route path="/" element={<LoginPage />} />
-              <Route path="/register" element={<RegisterPage />} />
+
 
               {/* Protected Routes - Accessible by all authenticated users */}
               <Route element={<ProtectedRoute />}>

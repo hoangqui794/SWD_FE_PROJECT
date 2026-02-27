@@ -98,10 +98,7 @@ const LoginPage: React.FC = () => {
             >
               {isLoading ? 'Logging in...' : 'Login'}
             </button>
-            <div className="flex items-center justify-center gap-2">
-              <p className="text-slate-500 dark:text-slate-400 text-sm">Don't have an account?</p>
-              <Link to="/register" className="text-primary hover:underline text-sm font-bold uppercase tracking-wide">Register</Link>
-            </div>
+
           </div>
         </form>
         <div className="h-1 w-full bg-primary"></div>
