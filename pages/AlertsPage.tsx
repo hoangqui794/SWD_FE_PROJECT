@@ -58,8 +58,8 @@ const AlertsPage: React.FC = () => {
 
     // --- API Calls ---
 
-    const fetchAlerts = async () => {
-        setIsLoading(true);
+    const fetchAlerts = async (silent = false) => {
+        if (!silent) setIsLoading(true);
         setError(null);
         try {
             const response = await notificationService.getHistory({
@@ -142,9 +142,21 @@ const AlertsPage: React.FC = () => {
             console.log("AlertsPage: SignalR update received", data);
             // Refresh current view
             if (activeTab === 'history') {
-                fetchAlerts();
+                // If the signalr data is a new alert object, prepend it
+                if (data && typeof data === 'object' && data.id) {
+                    setAlerts(prev => {
+                        // Avoid duplicates
+                        if (prev.find(a => a.id === data.id)) return prev;
+                        // Add new alert to the start and keep page size parity
+                        const updated = [data, ...prev];
+                        return updated.slice(0, pageSize);
+                    });
+                    setTotalCount(prev => prev + 1);
+                } else {
+                    fetchAlerts(true); // Silent refresh
+                }
             } else {
-                fetchRules();
+                fetchRules(); // Rules usually change less frequently, but could also be silent
             }
         };
 
