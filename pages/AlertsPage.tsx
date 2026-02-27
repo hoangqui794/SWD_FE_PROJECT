@@ -217,7 +217,7 @@ const AlertsPage: React.FC = () => {
 
     // --- Handlers: Rules ---
 
-    const handleOpenCreateRule = () => {
+    const resetRuleForm = () => {
         setEditingRuleId(null);
         setRuleFormData({
             sensorId: 0,
@@ -228,6 +228,10 @@ const AlertsPage: React.FC = () => {
             notificationMethod: 'Email',
             priority: 'Warning'
         });
+    };
+
+    const handleOpenCreateRule = () => {
+        resetRuleForm();
         setIsRuleModalOpen(true);
     };
 
@@ -264,7 +268,7 @@ const AlertsPage: React.FC = () => {
 
             setIsRuleModalOpen(false);
             fetchRules(); // Refresh list
-            handleOpenCreateRule(); // Reset form
+            resetRuleForm(); // Reset form without reopening
         } catch (error: any) {
             console.error(editingRuleId ? "Update rule failed" : "Create rule failed", error);
             showNotification((editingRuleId ? 'Update failed: ' : 'Create failed: ') + (error.response?.data?.message || error.message), 'error');
