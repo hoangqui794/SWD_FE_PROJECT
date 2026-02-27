@@ -117,18 +117,18 @@ const DashboardPage: React.FC = () => {
   useEffect(() => {
     fetchStats();
     fetchHubs();
+    // Khởi động kết nối SignalR ngay khi vào Dashboard
+    signalRService.startConnection();
   }, []);
 
-  // Lắng nghe SignalR để cập nhật bảng Alert và Stats ngay lập tức
+  // Lắng nghe SignalR cho các sự kiện Alert và Stats
   useEffect(() => {
     const handleRealtimeUpdate = (data: any) => {
-      console.log("Dashboard: SignalR alert received, updating UI immediately...", data);
-
+      console.log("Dashboard: Alert notification received", data);
       const payload = data?.alert;
       if (payload) {
-        // Tạo một đối tượng alert mới giả lập từ dữ liệu SignalR để hiển thị ngay
         const newAlert = {
-          id: Date.now(), // ID tạm thời
+          id: Date.now(),
           sensorName: payload.sensorName || "Unknown Sensor",
           location: payload.siteName || "Unknown Location",
           value: payload.value,
@@ -137,17 +137,13 @@ const DashboardPage: React.FC = () => {
           status: 'Active',
           time: data.timestamp || new Date().toISOString()
         };
-
-        // Đẩy cảnh báo mới lên đầu danh sách và giữ lại tối đa 10 cái
         setRecentAlerts(prev => {
-          // Kiểm tra tránh trùng lặp nếu API và SignalR về cùng lúc
           const exists = prev.some(a => a.sensorName === newAlert.sensorName && a.time === newAlert.time);
           if (exists) return prev;
           return [newAlert, ...prev].slice(0, 10);
         });
       }
-
-      fetchStats(true); // Cập nhật ngầm các stats khác như tổng số cảnh báo
+      fetchStats(true);
     };
 
     signalRService.on("ReceiveAlertNotification", handleRealtimeUpdate);
@@ -157,7 +153,168 @@ const DashboardPage: React.FC = () => {
       signalRService.off("ReceiveAlertNotification", handleRealtimeUpdate);
       signalRService.off("receivealertnotification", handleRealtimeUpdate);
     };
-  }, []);
+  }, [fetchStats]);
+
+  // Real-time cập nhật Current Environment (Hub level)
+  useEffect(() => {
+    if (!selectedHubId) return;
+
+    const setupHubConnection = async () => {
+      console.log(`SignalR: Attempting to join hub group: ${selectedHubId}`);
+      try {
+        await signalRService.invoke("JoinHubGroup", selectedHubId);
+        console.log(`SignalR: Successfully joined hub group ${selectedHubId}`);
+      } catch (err) {
+        console.error(`SignalR: Failed to join hub group:`, err);
+        setTimeout(setupHubConnection, 3000);
+      }
+    };
+
+    setupHubConnection();
+
+    const handleHubEnvironmentData = (data: any) => {
+      console.log(">>> [REALTIME] ReceiveHubEnvironmentData:", data);
+
+      const payload = data?.data || data;
+
+      if (payload) {
+        // Cập nhật giá trị cho từng loại cảm biến dựa trên payload phẳng
+        setEnvSensors(prev => prev.map(sensor => {
+          let newValue = null;
+          const type = sensor.typeName?.toLowerCase();
+
+          if (type === 'temperature') newValue = payload.temperature;
+          else if (type === 'humidity') newValue = payload.humidity;
+          else if (type === 'pressure') newValue = payload.pressure;
+
+          if (newValue !== null && newValue !== undefined) {
+            return {
+              ...sensor,
+              readings: [{
+                value: Number(newValue),
+                recordedAt: payload.updatedAt || payload.recordedAt || new Date().toISOString()
+              }]
+            };
+          }
+          return sensor;
+        }));
+
+        if (payload.hubName) setEnvHubName(payload.hubName);
+      }
+    };
+
+    signalRService.on("ReceiveHubEnvironmentData", handleHubEnvironmentData);
+    signalRService.on("receivehubenvironmentdata", handleHubEnvironmentData);
+
+    return () => {
+      console.log(`SignalR: Leaving hub group: ${selectedHubId}`);
+      signalRService.off("ReceiveHubEnvironmentData", handleHubEnvironmentData);
+      signalRService.off("receivehubenvironmentdata", handleHubEnvironmentData);
+      signalRService.invoke("LeaveHubGroup", selectedHubId).catch(e => console.error("Error leaving group", e));
+    };
+  }, [selectedHubId]);
+
+  // Real-time cập nhật Readings (Sensor level) cho Chart và Logs
+  useEffect(() => {
+    if (!selectedHistorySensorId) return;
+
+    const setupSensorConnection = async () => {
+      console.log(`SignalR: Attempting to join sensor group: ${selectedHistorySensorId}`);
+      try {
+        await signalRService.invoke("JoinSensorGroup", selectedHistorySensorId);
+        console.log(`SignalR: Successfully joined sensor group ${selectedHistorySensorId}`);
+      } catch (err) {
+        console.error(`SignalR: Failed to join sensor group:`, err);
+        setTimeout(setupSensorConnection, 3000);
+      }
+    };
+
+    setupSensorConnection();
+
+    const handleSensorData = (data: any) => {
+      console.log(">>> [REALTIME] ReceiveSensorData:", data);
+
+      const payload = data?.data || data;
+
+      if (payload && (payload.value !== undefined || payload.currentValue !== undefined)) {
+        const val = payload.value !== undefined ? payload.value : payload.currentValue;
+        const recordedAt = payload.recordedAt || payload.lastUpdate || payload.updatedAt || new Date().toISOString();
+
+        const newReading = {
+          value: Number(val),
+          recordedAt: recordedAt
+        };
+
+        setHistoryData(prev => {
+          if (!prev) return prev;
+          return {
+            ...prev,
+            sensors: prev.sensors.map(s => {
+              if (s.sensorId === selectedHistorySensorId) {
+                const updatedReadings = [newReading, ...s.readings].slice(0, 100);
+                return { ...s, readings: updatedReadings };
+              }
+              return s;
+            })
+          };
+        });
+
+        // Đồng thời cập nhật trạng thái Current Environment nếu sensor này đang hiển thị
+        setEnvSensors(prev => prev.map(s => {
+          if (s.sensorId === selectedHistorySensorId) {
+            return {
+              ...s,
+              readings: [newReading]
+            };
+          }
+          return s;
+        }));
+      }
+    };
+
+    signalRService.on("ReceiveSensorData", handleSensorData);
+    signalRService.on("receivesensordata", handleSensorData);
+
+    return () => {
+      console.log(`SignalR: Leaving sensor group: ${selectedHistorySensorId}`);
+      signalRService.off("ReceiveSensorData", handleSensorData);
+      signalRService.off("receivesensordata", handleSensorData);
+      signalRService.invoke("LeaveSensorGroup", selectedHistorySensorId).catch(e => console.error("Error leaving group", e));
+    };
+  }, [selectedHistorySensorId]);
+
+  // Lắng nghe sự kiện trạng thái Online/Offline
+  useEffect(() => {
+    const handleHubStatus = (data: any) => {
+      console.log(">>> [REALTIME] ReceiveHubStatusChange:", data);
+      const hubId = data?.hubId || data?.HubId;
+      const isOnline = data?.isOnline !== undefined ? data.isOnline : data?.IsOnline;
+
+      if (hubId === selectedHubId) {
+        setHubs(prev => prev.map(h => h.hubId === hubId ? { ...h, isOnline: !!isOnline } : h));
+      }
+    };
+
+    const handleSensorStatus = (data: any) => {
+      console.log(">>> [REALTIME] ReceiveSensorStatusChange:", data);
+      const sensorId = data?.sensorId || data?.SensorId;
+      const isOnline = data?.isOnline !== undefined ? data.isOnline : data?.IsOnline;
+
+      setEnvSensors(prev => prev.map(s => s.sensorId === sensorId ? { ...s, status: isOnline ? 'Online' : 'Offline' } : s));
+    };
+
+    signalRService.on("ReceiveHubStatusChange", handleHubStatus);
+    signalRService.on("receivehubstatuschange", handleHubStatus);
+    signalRService.on("ReceiveSensorStatusChange", handleSensorStatus);
+    signalRService.on("receivesensorstatuschange", handleSensorStatus);
+
+    return () => {
+      signalRService.off("ReceiveHubStatusChange", handleHubStatus);
+      signalRService.off("receivehubstatuschange", handleHubStatus);
+      signalRService.off("ReceiveSensorStatusChange", handleSensorStatus);
+      signalRService.off("receivesensorstatuschange", handleSensorStatus);
+    };
+  }, [selectedHubId]);
 
   // Tự động lấy dữ liệu môi trường và lịch sử khi Hub thay đổi hoặc Ngày thay đổi
   useEffect(() => {
