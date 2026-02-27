@@ -41,6 +41,8 @@ const AlertsPage: React.FC = () => {
     const [isRuleModalOpen, setIsRuleModalOpen] = useState(false);
     const [isSubmittingRule, setIsSubmittingRule] = useState(false);
     const [editingRuleId, setEditingRuleId] = useState<number | null>(null); // State to track editing
+    const [ruleSearchTerm, setRuleSearchTerm] = useState("");
+    const [rulePriorityFilter, setRulePriorityFilter] = useState("All");
     const [ruleFormData, setRuleFormData] = useState<CreateAlertRuleRequest>({
         sensorId: 0,
         name: '',
@@ -438,56 +440,93 @@ const AlertsPage: React.FC = () => {
 
                 {/* TAB 2: RULES TABLE */}
                 {activeTab === 'rules' && !isLoading && (
-                    <div className="overflow-x-auto">
-                        <table className="w-full text-left whitespace-nowrap">
-                            <thead className="bg-slate-50 dark:bg-zinc-900/50 border-b border-slate-200 dark:border-border-muted text-slate-500 dark:text-slate-400">
-                                <tr>
-                                    <th className="px-6 py-4 text-[11px] font-extrabold uppercase tracking-widest text-inherit">Rule Name</th>
-                                    <th className="px-6 py-4 text-[11px] font-extrabold uppercase tracking-widest text-inherit">Sensor</th>
-                                    <th className="px-6 py-4 text-[11px] font-extrabold uppercase tracking-widest text-inherit">Condition</th>
-                                    <th className="px-6 py-4 text-[11px] font-extrabold uppercase tracking-widest text-inherit">Threshold</th>
-                                    <th className="px-6 py-4 text-[11px] font-extrabold uppercase tracking-widest text-inherit">Priority</th>
-                                    <th className="px-6 py-4 text-[11px] font-extrabold uppercase tracking-widest text-inherit">Notify</th>
-                                    {canManage && <th className="px-6 py-4 text-[11px] font-extrabold uppercase tracking-widest text-inherit text-right">Actions</th>}
-                                </tr>
-                            </thead>
-                            <tbody className="divide-y divide-slate-100 dark:divide-border-muted">
-                                {rules.map((rule) => (
-                                    <tr key={rule.ruleId} className="hover:bg-slate-50 dark:hover:bg-white/5 transition-colors">
-                                        <td className="px-6 py-4 text-xs font-bold text-slate-900 dark:text-white">{rule.name}</td>
-                                        <td className="px-6 py-4 text-xs text-slate-500 dark:text-slate-300">{rule.sensorName}</td>
-                                        <td className="px-6 py-4 text-xs text-slate-400 italic">{rule.conditionType}</td>
-                                        <td className="px-6 py-4 text-xs font-mono text-primary font-bold">
-                                            {rule.minVal} - {rule.maxVal}
-                                        </td>
-                                        <td className="px-6 py-4">
-                                            <span className={`px-2 py-1 border text-[10px] font-bold uppercase rounded-md shadow-sm ${getSeverityStyle(rule.priority)}`}>
-                                                {rule.priority}
-                                            </span>
-                                        </td>
-                                        <td className="px-6 py-4 text-xs text-slate-500 dark:text-slate-400 flex items-center gap-1">
-                                            <span className="material-symbols-outlined text-sm">mail</span>
-                                            {rule.notificationMethod}
-                                        </td>
-                                        {canManage && (
-                                            <td className="px-6 py-4 text-right">
-                                                <button
-                                                    onClick={() => handleEditRule(rule)}
-                                                    className="p-1 text-slate-500 hover:text-white transition-colors"
-                                                    title="Edit Rule"
-                                                >
-                                                    <span className="material-symbols-outlined text-sm">edit</span>
-                                                </button>
-                                            </td>
-                                        )}
+                    <>
+                        <div className="p-4 border-b border-slate-200 dark:border-border-muted flex flex-wrap gap-4 items-center justify-between bg-slate-50/50 dark:bg-zinc-900/30">
+                            <div className="flex flex-wrap gap-4 items-center w-full md:w-auto">
+                                <div className="relative w-full max-w-sm">
+                                    <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm">search</span>
+                                    <input
+                                        value={ruleSearchTerm}
+                                        onChange={(e) => setRuleSearchTerm(e.target.value)}
+                                        className="w-full bg-white dark:bg-background-dark border border-slate-200 dark:border-border-muted text-xs rounded-lg pl-10 focus:ring-1 focus:ring-primary h-9 text-slate-900 dark:text-white transition-colors"
+                                        placeholder="Search rules or sensors..."
+                                    />
+                                </div>
+
+                                <div className="relative w-full md:w-48">
+                                    <select
+                                        value={rulePriorityFilter}
+                                        onChange={(e) => setRulePriorityFilter(e.target.value)}
+                                        className="w-full bg-white dark:bg-background-dark border border-slate-200 dark:border-border-muted text-xs rounded-lg px-3 focus:ring-1 focus:ring-primary h-9 text-slate-900 dark:text-white transition-colors appearance-none"
+                                    >
+                                        <option value="All">All Priorities</option>
+                                        <option value="High">High</option>
+                                        <option value="Medium">Medium</option>
+                                        <option value="Low">Low</option>
+                                    </select>
+                                    <span className="material-symbols-outlined absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none text-sm">expand_more</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div className="overflow-x-auto">
+                            <table className="w-full text-left whitespace-nowrap">
+                                <thead className="bg-slate-50 dark:bg-zinc-900/50 border-b border-slate-200 dark:border-border-muted text-slate-500 dark:text-slate-400">
+                                    <tr>
+                                        <th className="px-6 py-4 text-[11px] font-extrabold uppercase tracking-widest text-inherit">Rule Name</th>
+                                        <th className="px-6 py-4 text-[11px] font-extrabold uppercase tracking-widest text-inherit">Sensor</th>
+                                        <th className="px-6 py-4 text-[11px] font-extrabold uppercase tracking-widest text-inherit">Condition</th>
+                                        <th className="px-6 py-4 text-[11px] font-extrabold uppercase tracking-widest text-inherit">Threshold</th>
+                                        <th className="px-6 py-4 text-[11px] font-extrabold uppercase tracking-widest text-inherit">Priority</th>
+                                        {canManage && <th className="px-6 py-4 text-[11px] font-extrabold uppercase tracking-widest text-inherit text-right">Actions</th>}
                                     </tr>
-                                ))}
-                                {rules.length === 0 && (
-                                    <tr><td colSpan={6} className="p-8 text-center text-slate-500 text-sm">No alert rules configured yet.</td></tr>
-                                )}
-                            </tbody>
-                        </table>
-                    </div>
+                                </thead>
+                                <tbody className="divide-y divide-slate-100 dark:divide-border-muted">
+                                    {rules
+                                        .filter(rule => {
+                                            const matchesSearch = rule.name.toLowerCase().includes(ruleSearchTerm.toLowerCase()) ||
+                                                rule.sensorName.toLowerCase().includes(ruleSearchTerm.toLowerCase());
+                                            const matchesPriority = rulePriorityFilter === 'All' || rule.priority === rulePriorityFilter;
+                                            return matchesSearch && matchesPriority;
+                                        })
+                                        .map((rule) => (
+                                            <tr key={rule.ruleId} className="hover:bg-slate-50 dark:hover:bg-white/5 transition-colors">
+                                                <td className="px-6 py-4 text-xs font-bold text-slate-900 dark:text-white">{rule.name}</td>
+                                                <td className="px-6 py-4 text-xs text-slate-500 dark:text-slate-300">{rule.sensorName}</td>
+                                                <td className="px-6 py-4 text-xs text-slate-400 italic">{rule.conditionType}</td>
+                                                <td className="px-6 py-4 text-xs font-mono text-primary font-bold">
+                                                    {rule.minVal} - {rule.maxVal}
+                                                </td>
+                                                <td className="px-6 py-4">
+                                                    <span className={`px-2 py-1 border text-[10px] font-bold uppercase rounded-md shadow-sm ${getSeverityStyle(rule.priority)}`}>
+                                                        {rule.priority}
+                                                    </span>
+                                                </td>
+                                                {canManage && (
+                                                    <td className="px-6 py-4 text-right">
+                                                        <button
+                                                            onClick={() => handleEditRule(rule)}
+                                                            className="p-1 text-slate-500 hover:text-white transition-colors"
+                                                            title="Edit Rule"
+                                                        >
+                                                            <span className="material-symbols-outlined text-sm">edit</span>
+                                                        </button>
+                                                    </td>
+                                                )}
+                                            </tr>
+                                        ))}
+                                    {rules.filter(rule => {
+                                        const matchesSearch = rule.name.toLowerCase().includes(ruleSearchTerm.toLowerCase()) ||
+                                            rule.sensorName.toLowerCase().includes(ruleSearchTerm.toLowerCase());
+                                        const matchesPriority = rulePriorityFilter === 'All' || rule.priority === rulePriorityFilter;
+                                        return matchesSearch && matchesPriority;
+                                    }).length === 0 && (
+                                            <tr><td colSpan={7} className="p-8 text-center text-slate-500 text-sm">No alert rules found matching your filters.</td></tr>
+                                        )}
+                                </tbody>
+                            </table>
+                        </div>
+                    </>
                 )}
             </div>
 
