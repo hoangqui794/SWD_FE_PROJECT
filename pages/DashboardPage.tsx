@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback, useMemo } from 'react';
+import React, { useEffect, useState, useCallback, useMemo, useRef } from 'react';
 import Layout from '../components/Layout';
 import { Link } from 'react-router-dom';
 import { getDashboardStats, getRecentAlerts, DashboardStats } from '../services/dashboardService';
@@ -283,6 +283,10 @@ const DashboardPage: React.FC = () => {
     };
   }, [selectedHistorySensorId]);
 
+  // Debounce refs for hub/sensor status to handle OFF→ON→OFF bounce
+  const hubStatusTimeouts = useRef<Record<number, ReturnType<typeof setTimeout>>>({});
+  const sensorStatusTimeouts = useRef<Record<number, ReturnType<typeof setTimeout>>>({});
+
   // Lắng nghe sự kiện trạng thái Online/Offline
   useEffect(() => {
     const handleHubStatus = (data: any) => {
@@ -290,17 +294,29 @@ const DashboardPage: React.FC = () => {
       const hubId = data?.hubId || data?.HubId;
       const isOnline = data?.isOnline !== undefined ? data.isOnline : data?.IsOnline;
 
-      if (hubId === selectedHubId) {
+      // Debounce 2s: nếu status thay đổi liên tục (OFF→ON→OFF), chỉ lấy lần cuối
+      clearTimeout(hubStatusTimeouts.current[hubId]);
+      hubStatusTimeouts.current[hubId] = setTimeout(() => {
+        // Update ALL hubs in the list (not just selected)
         setHubs(prev => prev.map(h => h.hubId === hubId ? { ...h, isOnline: !!isOnline } : h));
-      }
+
+        // When selected hub goes OFFLINE, cascade to all its sensor cards
+        if (hubId === selectedHubId && !isOnline) {
+          setEnvSensors(prev => prev.map(s => ({ ...s, status: 'Offline' })));
+        }
+      }, 2000);
     };
 
     const handleSensorStatus = (data: any) => {
       console.log(">>> [REALTIME] ReceiveSensorStatusChange:", data);
       const sensorId = data?.sensorId || data?.SensorId;
-      const isOnline = data?.isOnline !== undefined ? data.isOnline : data?.IsOnline;
+      const status = data?.status || (data?.isOnline ? 'Online' : 'Offline');
 
-      setEnvSensors(prev => prev.map(s => s.sensorId === sensorId ? { ...s, status: isOnline ? 'Online' : 'Offline' } : s));
+      // Debounce 2s for sensor status too
+      clearTimeout(sensorStatusTimeouts.current[sensorId]);
+      sensorStatusTimeouts.current[sensorId] = setTimeout(() => {
+        setEnvSensors(prev => prev.map(s => s.sensorId === sensorId ? { ...s, status } : s));
+      }, 2000);
     };
 
     signalRService.on("ReceiveHubStatusChange", handleHubStatus);
@@ -309,6 +325,9 @@ const DashboardPage: React.FC = () => {
     signalRService.on("receivesensorstatuschange", handleSensorStatus);
 
     return () => {
+      // Cleanup debounce timers
+      Object.values(hubStatusTimeouts.current).forEach(clearTimeout);
+      Object.values(sensorStatusTimeouts.current).forEach(clearTimeout);
       signalRService.off("ReceiveHubStatusChange", handleHubStatus);
       signalRService.off("receivehubstatuschange", handleHubStatus);
       signalRService.off("ReceiveSensorStatusChange", handleSensorStatus);

@@ -127,6 +127,7 @@ const AlertsPage: React.FC = () => {
 
     // Fetch data based on active tab
     useEffect(() => {
+        signalRService.startConnection(); // Ensure SignalR is connected for real-time alerts
         fetchSites(); // Always fetch sites for the filter
         if (activeTab === 'history') {
             fetchAlerts();

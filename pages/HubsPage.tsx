@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import Layout from '../components/Layout';
 import Modal from '../components/Modal';
 import { useAuth } from '../context/AuthContext';
@@ -27,31 +27,36 @@ const HubsPage: React.FC = () => {
     macAddress: ""
   });
 
+  // Debounce ref for hub status to handle OFF→ON→OFF bounce
+  const hubStatusTimeouts = useRef<Record<number, ReturnType<typeof setTimeout>>>({});
+
   useEffect(() => {
     fetchHubs();
     fetchSites();
 
     // Ensure connection is started
-
     signalRService.startConnection();
 
-    // Listen for realtime updates using the correct event names provided by the user
+    // Listen for realtime hub status with 2s debounce
     const handleHubStatus = (data: any) => {
       console.log("Realtime update received via [ReceiveHubStatusChange]:", data);
-      fetchHubs(false); // Silent update
-    };
+      const hubId = data?.hubId || data?.HubId;
+      const isOnline = data?.isOnline !== undefined ? data.isOnline : data?.IsOnline;
 
-    const handleSensorUpdate = (data: any) => {
-      console.log("Realtime update received via [ReceiveSensorStatusChange]:", data);
-      fetchHubs(false); // Silent update
+      // Debounce 2s: if status changes rapidly (OFF→ON→OFF), only apply the last one
+      clearTimeout(hubStatusTimeouts.current[hubId]);
+      hubStatusTimeouts.current[hubId] = setTimeout(() => {
+        setHubs(prev => prev.map(h => h.hubId === hubId ? { ...h, isOnline: !!isOnline } : h));
+      }, 2000);
     };
 
     signalRService.on("ReceiveHubStatusChange", handleHubStatus);
-    signalRService.on("ReceiveSensorStatusChange", handleSensorUpdate);
+    signalRService.on("receivehubstatuschange", handleHubStatus);
 
     return () => {
+      Object.values(hubStatusTimeouts.current).forEach(clearTimeout);
       signalRService.off("ReceiveHubStatusChange", handleHubStatus);
-      signalRService.off("ReceiveSensorStatusChange", handleSensorUpdate);
+      signalRService.off("receivehubstatuschange", handleHubStatus);
     };
   }, []);
 

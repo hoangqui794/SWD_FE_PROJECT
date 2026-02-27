@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import Layout from '../components/Layout';
 import Modal from '../components/Modal';
 import { useAuth } from '../context/AuthContext';
@@ -42,6 +42,9 @@ const SensorsPage: React.FC = () => {
   const [editingSensorId, setEditingSensorId] = useState<number | null>(null);
   const [deleteTargetId, setDeleteTargetId] = useState<number | null>(null);
 
+  // Debounce ref for sensor status to handle OFF→ON→OFF bounce
+  const sensorStatusTimeouts = useRef<Record<number, ReturnType<typeof setTimeout>>>({});
+
   // Fetch hubs and setup SignalR on mount
   useEffect(() => {
     fetchHubs();
@@ -50,7 +53,7 @@ const SensorsPage: React.FC = () => {
     }
     signalRService.startConnection();
 
-    // Listener for sensor updates
+    // Listener for sensor updates (generic)
     const handleSensorUpdate = (updatedSensor: Sensor) => {
       console.log("Realtime sensor update received:", updatedSensor);
       setSensors(prevSensors =>
@@ -60,13 +63,32 @@ const SensorsPage: React.FC = () => {
       );
     };
 
+    // Listener for sensor status changes (Online/Offline) with 2s debounce
+    const handleSensorStatusChange = (data: any) => {
+      console.log("Realtime sensor status change received:", data);
+      const sensorId = data?.sensorId || data?.SensorId;
+      const status = data?.status || (data?.isOnline ? 'Online' : 'Offline');
+
+      // Debounce 2s: handle rapid OFF→ON→OFF changes
+      clearTimeout(sensorStatusTimeouts.current[sensorId]);
+      sensorStatusTimeouts.current[sensorId] = setTimeout(() => {
+        setSensors(prevSensors =>
+          prevSensors.map(sensor =>
+            sensor.sensorId === sensorId ? { ...sensor, status } : sensor
+          )
+        );
+      }, 2000);
+    };
+
     signalRService.on("ReceiveSensorUpdate", handleSensorUpdate);
-
-
+    signalRService.on("ReceiveSensorStatusChange", handleSensorStatusChange);
+    signalRService.on("receivesensorstatuschange", handleSensorStatusChange);
 
     return () => {
+      Object.values(sensorStatusTimeouts.current).forEach(clearTimeout);
       signalRService.off("ReceiveSensorUpdate", handleSensorUpdate);
-
+      signalRService.off("ReceiveSensorStatusChange", handleSensorStatusChange);
+      signalRService.off("receivesensorstatuschange", handleSensorStatusChange);
     };
   }, []);
 
