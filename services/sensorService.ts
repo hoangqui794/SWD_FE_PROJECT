@@ -36,11 +36,12 @@ export const sensorService = {
      * @param typeId - Optional: Lọc theo loại sensor (1: Temperature, 2: Humidity, 3: Pressure)
      * @returns Promise chứa mảng Sensor[]
      */
-    getAll: async (hubId?: number, typeId?: number): Promise<Sensor[]> => {
+    getAll: async (hubId?: number, typeId?: number, siteId?: number): Promise<Sensor[]> => {
         const params: any = {};
         // API backend sử dụng snake_case cho parameters
         if (hubId) params.hub_id = hubId;
         if (typeId) params.type = typeId;
+        if (siteId) params.site_id = siteId;
 
         const response = await apiClient.get<ApiResponse<Sensor[]>>('/api/sensors', { params });
         return response.data.data;

@@ -7,6 +7,7 @@ import { useNotification } from '../context/NotificationContext';
 
 import { sensorService, Sensor, CreateSensorRequest } from '../services/sensorService';
 import { hubService, Hub } from '../services/hubService';
+import { siteService, Site } from '../services/siteService';
 import { signalRService } from '../services/signalrService';
 
 
@@ -21,8 +22,14 @@ const SensorsPage: React.FC = () => {
   const [hubs, setHubs] = useState<Hub[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [sites, setSites] = useState<Site[]>([]);
   const [filterTypeId, setFilterTypeId] = useState<number | undefined>();
   const [filterHubId, setFilterHubId] = useState<number | undefined>();
+  const [filterSiteId, setFilterSiteId] = useState<number | undefined>();
+
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 8;
 
 
   // Form state cho tạo sensor mới
@@ -38,6 +45,9 @@ const SensorsPage: React.FC = () => {
   // Fetch hubs and setup SignalR on mount
   useEffect(() => {
     fetchHubs();
+    if (hasRole(['ADMIN'])) {
+      fetchSites();
+    }
     signalRService.startConnection();
 
     // Listener for sensor updates
@@ -62,8 +72,9 @@ const SensorsPage: React.FC = () => {
 
   // Fetch sensors when filters change
   useEffect(() => {
+    setCurrentPage(1); // Reset to first page when filters change
     fetchSensors();
-  }, [filterTypeId, filterHubId]);
+  }, [filterTypeId, filterHubId, filterSiteId]);
 
   /**
    * Hàm gọi API để lấy danh sách sensors
@@ -77,7 +88,20 @@ const SensorsPage: React.FC = () => {
     if (showLoading) setIsLoading(true);
     setError(null);
     try {
-      const data = await sensorService.getAll(filterHubId, filterTypeId);
+      let data = await sensorService.getAll(filterHubId, filterTypeId, filterSiteId);
+
+      // Frontend fallback: Nếu đã chọn lọc Site, ta lọc lại dữ liệu trả về 
+      // dựa trên thông tin Site của Hub mà Sensor đó thuộc về.
+      if (filterSiteId) {
+        // Lấy danh sách ID của các Hub thuộc Site đang chọn
+        const hubIdsInSite = hubs
+          .filter(hub => hub.siteId === filterSiteId)
+          .map(hub => hub.hubId);
+
+        // Lọc lại danh sách sensor
+        data = data.filter(sensor => hubIdsInSite.includes(sensor.hubId));
+      }
+
       setSensors(data);
     } catch (error) {
       console.error("Failed to fetch sensors", error);
@@ -96,6 +120,18 @@ const SensorsPage: React.FC = () => {
       setHubs(data);
     } catch (error) {
       console.error("Failed to fetch hubs", error);
+    }
+  };
+
+  /**
+   * Hàm gọi API để lấy danh sách sites (chỉ cho Admin)
+   */
+  const fetchSites = async () => {
+    try {
+      const data = await siteService.getAll();
+      setSites(data);
+    } catch (error) {
+      console.error("Failed to fetch sites", error);
     }
   };
 
@@ -227,10 +263,58 @@ const SensorsPage: React.FC = () => {
           </button>
         )}
       </div>
-      <div className="bg-white dark:bg-white/5 rounded-xl border border-slate-200 dark:border-border-muted overflow-hidden transition-colors shadow-sm">
+
+      {/* Stats Quick View (Optional decorative/functional) */}
+      <div className="grid grid-cols-4 gap-4 mb-6">
+        <div className="bg-white dark:bg-white/5 p-4 rounded-xl border border-slate-200 dark:border-border-muted shadow-sm flex items-center gap-4">
+          <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
+            <span className="material-symbols-outlined text-primary text-xl">sensors</span>
+          </div>
+          <div>
+            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Total Sensors</p>
+            <p className="text-xl font-bold dark:text-white">{sensors.length}</p>
+          </div>
+        </div>
+        <div className="bg-white dark:bg-white/5 p-4 rounded-xl border border-slate-200 dark:border-border-muted shadow-sm flex items-center gap-4">
+          <div className="w-10 h-10 rounded-lg bg-emerald-500/10 flex items-center justify-center">
+            <span className="material-symbols-outlined text-emerald-500 text-xl">check_circle</span>
+          </div>
+          <div>
+            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Online</p>
+            <p className="text-xl font-bold dark:text-white">{sensors.filter(s => s.status.toLowerCase() === 'online').length}</p>
+          </div>
+        </div>
+        <div className="bg-white dark:bg-white/5 p-4 rounded-xl border border-slate-200 dark:border-border-muted shadow-sm flex items-center gap-4">
+          <div className="w-10 h-10 rounded-lg bg-red-500/10 flex items-center justify-center">
+            <span className="material-symbols-outlined text-red-500 text-xl">error</span>
+          </div>
+          <div>
+            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Offline</p>
+            <p className="text-xl font-bold dark:text-white">{sensors.filter(s => s.status.toLowerCase() !== 'online').length}</p>
+          </div>
+        </div>
+      </div>
+
+      <div className="bg-white dark:bg-white/5 rounded-xl border border-slate-200 dark:border-border-muted overflow-hidden transition-colors shadow-sm mb-6">
         {/* Filter Section */}
         <div className="p-4 border-b border-slate-200 dark:border-border-muted flex gap-4 items-center justify-between bg-slate-50 dark:bg-zinc-900/30">
           <div className="flex gap-3">
+            {hasRole(['ADMIN']) && (
+              <select
+                value={filterSiteId || ''}
+                onChange={(e) => {
+                  const val = e.target.value ? Number(e.target.value) : undefined;
+                  setFilterSiteId(val);
+                  setFilterHubId(undefined); // Reset hub when site changes
+                }}
+                className="bg-white dark:bg-zinc-900 border border-slate-200 dark:border-border-muted rounded-lg px-4 py-2 text-xs text-slate-900 dark:text-white outline-none focus:ring-1 focus:ring-primary appearance-none transition-colors"
+              >
+                <option value="">All Sites</option>
+                {sites.map(site => (
+                  <option key={site.siteId} value={site.siteId}>{site.name}</option>
+                ))}
+              </select>
+            )}
             <select
               value={filterTypeId || ''}
               onChange={(e) => setFilterTypeId(e.target.value ? Number(e.target.value) : undefined)}
@@ -286,37 +370,39 @@ const SensorsPage: React.FC = () => {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 dark:divide-border-muted">
-                {sensors.map((sensor) => (
-                  <tr key={sensor.sensorId} className="hover:bg-slate-50 dark:hover:bg-white/5 transition-colors">
-                    <td className="px-6 py-4 text-xs font-bold text-slate-900 dark:text-white whitespace-nowrap">{sensor.sensorId}</td>
-                    <td className="px-6 py-4 text-sm font-medium text-slate-900 dark:text-white">{sensor.sensorName}</td>
-                    <td className="px-6 py-4 text-xs text-slate-500 dark:text-slate-400">{sensor.typeName}</td>
-                    <td className="px-6 py-4 text-xs text-slate-500 dark:text-slate-400">{sensor.hubName}</td>
-                    <td className="px-6 py-4">
-                      <span className={`text-[10px] font-bold uppercase ${getStatusColor(sensor.status)}`}>
-                        {sensor.status}
-                      </span>
-                    </td>
-                    {canManage && (
-                      <td className="px-6 py-4 text-right flex justify-end gap-2">
-                        <button
-                          onClick={() => handleOpenEditModal(sensor)}
-                          className="text-slate-400 hover:text-primary dark:hover:text-white transition-colors"
-                          title="Edit"
-                        >
-                          <span className="material-symbols-outlined text-sm">edit</span>
-                        </button>
-                        <button
-                          onClick={() => setDeleteTargetId(sensor.sensorId)}
-                          className="text-slate-400 hover:text-red-500 transition-colors"
-                          title="Delete"
-                        >
-                          <span className="material-symbols-outlined text-sm">delete</span>
-                        </button>
+                {sensors
+                  .slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage)
+                  .map((sensor) => (
+                    <tr key={sensor.sensorId} className="hover:bg-slate-50 dark:hover:bg-white/5 transition-colors">
+                      <td className="px-6 py-4 text-xs font-bold text-slate-900 dark:text-white whitespace-nowrap">{sensor.sensorId}</td>
+                      <td className="px-6 py-4 text-sm font-medium text-slate-900 dark:text-white">{sensor.sensorName}</td>
+                      <td className="px-6 py-4 text-xs text-slate-500 dark:text-slate-400">{sensor.typeName}</td>
+                      <td className="px-6 py-4 text-xs text-slate-500 dark:text-slate-400">{sensor.hubName}</td>
+                      <td className="px-6 py-4">
+                        <span className={`text-[10px] font-bold uppercase ${getStatusColor(sensor.status)}`}>
+                          {sensor.status}
+                        </span>
                       </td>
-                    )}
-                  </tr>
-                ))}
+                      {canManage && (
+                        <td className="px-6 py-4 text-right flex justify-end gap-2">
+                          <button
+                            onClick={() => handleOpenEditModal(sensor)}
+                            className="text-slate-400 hover:text-primary dark:hover:text-white transition-colors"
+                            title="Edit"
+                          >
+                            <span className="material-symbols-outlined text-sm">edit</span>
+                          </button>
+                          <button
+                            onClick={() => setDeleteTargetId(sensor.sensorId)}
+                            className="text-slate-400 hover:text-red-500 transition-colors"
+                            title="Delete"
+                          >
+                            <span className="material-symbols-outlined text-sm">delete</span>
+                          </button>
+                        </td>
+                      )}
+                    </tr>
+                  ))}
                 {sensors.length === 0 && (
                   <tr>
                     <td colSpan={5} className="px-6 py-8 text-center text-slate-500 text-sm">
@@ -326,6 +412,42 @@ const SensorsPage: React.FC = () => {
                 )}
               </tbody>
             </table>
+          </div>
+        )}
+
+        {/* Pagination Controls */}
+        {!isLoading && sensors.length > 0 && (
+          <div className="p-4 border-t border-slate-200 dark:border-border-muted bg-slate-50/50 dark:bg-zinc-900/10 flex items-center justify-between">
+            <div className="text-xs text-slate-500">
+              Showing <span className="font-bold text-slate-900 dark:text-white">{(currentPage - 1) * itemsPerPage + 1}</span> to <span className="font-bold text-slate-900 dark:text-white">{Math.min(currentPage * itemsPerPage, sensors.length)}</span> of <span className="font-bold text-slate-900 dark:text-white">{sensors.length}</span> sensors
+            </div>
+            <div className="flex gap-2">
+              <button
+                onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                disabled={currentPage === 1}
+                className="px-3 py-1.5 border border-slate-200 dark:border-border-muted rounded-lg text-xs font-bold text-slate-700 dark:text-white disabled:opacity-30 transition-all hover:bg-slate-100 dark:hover:bg-zinc-800"
+              >
+                Previous
+              </button>
+              <div className="flex gap-1">
+                {Array.from({ length: Math.ceil(sensors.length / itemsPerPage) }, (_, i) => i + 1).map(page => (
+                  <button
+                    key={page}
+                    onClick={() => setCurrentPage(page)}
+                    className={`w-8 h-8 rounded-lg text-xs font-bold transition-all ${currentPage === page ? 'bg-slate-900 dark:bg-white text-white dark:text-black scale-105' : 'text-slate-500 hover:bg-slate-100 dark:hover:bg-zinc-800'}`}
+                  >
+                    {page}
+                  </button>
+                ))}
+              </div>
+              <button
+                onClick={() => setCurrentPage(p => Math.min(Math.ceil(sensors.length / itemsPerPage), p + 1))}
+                disabled={currentPage === Math.ceil(sensors.length / itemsPerPage)}
+                className="px-3 py-1.5 border border-slate-200 dark:border-border-muted rounded-lg text-xs font-bold text-slate-700 dark:text-white disabled:opacity-30 transition-all hover:bg-slate-100 dark:hover:bg-zinc-800"
+              >
+                Next
+              </button>
+            </div>
           </div>
         )}
       </div>

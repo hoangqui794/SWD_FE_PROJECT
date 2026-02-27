@@ -17,6 +17,7 @@ const HubsPage: React.FC = () => {
   const [hubs, setHubs] = useState<Hub[]>([]);
   const [sites, setSites] = useState<Site[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [searchTerm, setSearchTerm] = useState('');
 
 
   // Form State
@@ -160,6 +161,20 @@ const HubsPage: React.FC = () => {
         )}
       </div>
       <div className="bg-white dark:bg-white/5 rounded-xl border border-slate-200 dark:border-border-muted overflow-hidden transition-colors shadow-sm">
+        {/* Filter/Search Section */}
+        <div className="p-4 border-b border-slate-200 dark:border-border-muted bg-slate-50 dark:bg-zinc-900/30">
+          <div className="relative max-w-sm">
+            <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm">search</span>
+            <input
+              type="text"
+              placeholder="Search hubs by name, site, or MAC..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="w-full bg-white dark:bg-zinc-900 border border-slate-200 dark:border-border-muted rounded-lg pl-9 pr-4 py-2 text-xs text-slate-900 dark:text-white outline-none focus:ring-1 focus:ring-primary transition-all shadow-sm"
+            />
+          </div>
+        </div>
+
         <div className="overflow-x-auto">
           <table className="w-full text-left">
             {/* ... header ... */}
@@ -175,7 +190,17 @@ const HubsPage: React.FC = () => {
             <tbody className="divide-y divide-slate-100 dark:divide-border-muted">
               {isLoading ? (
                 <tr><td colSpan={5} className="px-6 py-8 text-center text-slate-500">Loading hubs...</td></tr>
-              ) : hubs.map((hub) => (
+              ) : hubs.filter(hub =>
+                hub.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                hub.siteName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                hub.macAddress.toLowerCase().includes(searchTerm.toLowerCase())
+              ).length === 0 ? (
+                <tr><td colSpan={5} className="px-6 py-8 text-center text-slate-500 text-sm">No hubs found matching your search.</td></tr>
+              ) : hubs.filter(hub =>
+                hub.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                hub.siteName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                hub.macAddress.toLowerCase().includes(searchTerm.toLowerCase())
+              ).map((hub) => (
                 <tr key={hub.hubId} className="hover:bg-slate-50 dark:hover:bg-white/5 transition-colors">
                   <td className="px-6 py-4 text-sm font-bold text-slate-900 dark:text-white">{hub.name}</td>
                   <td className="px-6 py-4 text-xs text-slate-500 dark:text-slate-400">{hub.siteName}</td>
