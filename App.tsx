@@ -10,6 +10,7 @@ import AlertsPage from './pages/AlertsPage';
 import UsersPage from './pages/UsersPage';
 import OrganizationsPage from './pages/OrganizationsPage';
 import ProfilePage from './pages/ProfilePage';
+import AiAssistantPage from './pages/AiAssistantPage';
 import { AuthProvider } from './context/AuthContext';
 import { NotificationProvider } from './context/NotificationContext';
 import { ThemeProvider } from './context/ThemeContext';
@@ -32,6 +33,7 @@ const App: React.FC = () => {
               <Route element={<ProtectedRoute />}>
                 <Route path="/dashboard" element={<DashboardPage />} />
                 <Route path="/profile" element={<ProfilePage />} />
+                <Route path="/ai-assistant" element={<AiAssistantPage />} />
               </Route>
 
               {/* Role Protected Routes */}
