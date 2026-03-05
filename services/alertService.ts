@@ -18,7 +18,7 @@ export interface AlertRule {
     minVal: number;
     maxVal: number;
     notificationMethod: string; // "Email", etc.
-    priority: string;      // "Critical", etc.
+    priority: string;      // "High", "Medium", "Low"
     isActive: boolean;
 }
 
@@ -32,6 +32,16 @@ export interface CreateAlertRuleRequest {
     priority: string;
 }
 
+export interface AlertRuleQueryParams {
+    search?: string;       // Tìm kiếm theo tên quy tắc hoặc tên cảm biến
+    isActive?: boolean;    // Lọc theo trạng thái active/inactive
+    priority?: string;     // Lọc theo mức độ ưu tiên (High, Medium, Low...)
+    pageNumber?: number;
+    pageSize?: number;
+    sortBy?: 'name' | 'priority' | 'isActive' | 'sensorId' | 'ruleId'; // default: ruleId
+    sortOrder?: 'asc' | 'desc'; // default: asc
+}
+
 // Interface cho API response
 interface ApiResponse<T> {
     message: string;
@@ -43,8 +53,6 @@ interface ApiResponse<T> {
 export const alertService = {
     /**
      * Lấy tất cả alerts (có filter và search)
-     * @param status - Trạng thái alert ("Active", "Resolved", hoặc null cho tất cả)
-     * @param search - Từ khóa tìm kiếm theo tên sensor
      */
     getAll: async (status?: string, search?: string): Promise<Alert[]> => {
         const params: any = {};
@@ -56,10 +64,19 @@ export const alertService = {
     },
 
     /**
-     * Lấy danh sách các quy tắc cảnh báo (Alert Rules)
+     * Lấy danh sách các quy tắc cảnh báo (Alert Rules) với đầy đủ filter
      */
-    getRules: async (): Promise<AlertRule[]> => {
-        const response = await apiClient.get<ApiResponse<AlertRule[]>>('/api/alerts/rules');
+    getRules: async (params?: AlertRuleQueryParams): Promise<AlertRule[]> => {
+        const query: Record<string, any> = {};
+        if (params?.search) query.search = params.search;
+        if (params?.isActive !== undefined) query.isActive = params.isActive;
+        if (params?.priority && params.priority !== 'All') query.priority = params.priority;
+        if (params?.pageNumber !== undefined) query.pageNumber = params.pageNumber;
+        if (params?.pageSize !== undefined) query.pageSize = params.pageSize;
+        if (params?.sortBy) query.sortBy = params.sortBy;
+        if (params?.sortOrder) query.sortOrder = params.sortOrder;
+
+        const response = await apiClient.get<ApiResponse<AlertRule[]>>('/api/alerts/rules', { params: query });
         return response.data.data;
     },
 
@@ -81,7 +98,6 @@ export const alertService = {
 
     /**
      * Đánh dấu alert là đã resolved
-     * @param id - ID của alert
      */
     resolve: async (id: number): Promise<{ message: string; resolvedAt: string }> => {
         const response = await apiClient.put(`/api/alerts/${id}/resolve`);
@@ -90,7 +106,6 @@ export const alertService = {
 
     /**
      * Xóa alert
-     * @param id - ID của alert
      */
     delete: async (id: number): Promise<void> => {
         await apiClient.delete(`/api/alerts/${id}`);

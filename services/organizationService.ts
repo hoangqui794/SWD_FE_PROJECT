@@ -8,6 +8,14 @@ export interface Organization {
     siteCount: number;
 }
 
+export interface OrgQueryParams {
+    search?: string;       // Tìm kiếm theo tên hoặc mô tả
+    pageNumber?: number;
+    pageSize?: number;
+    sortBy?: 'name' | 'createdAt' | 'orgId'; // default: orgId
+    sortOrder?: 'asc' | 'desc';               // default: asc
+}
+
 interface ApiResponse<T> {
     message: string;
     count: number;
@@ -15,8 +23,15 @@ interface ApiResponse<T> {
 }
 
 export const organizationService = {
-    getAll: async (): Promise<Organization[]> => {
-        const response = await apiClient.get<ApiResponse<Organization[]>>('/api/organizations');
+    getAll: async (params?: OrgQueryParams): Promise<Organization[]> => {
+        const query: Record<string, any> = {};
+        if (params?.search) query.search = params.search;
+        if (params?.pageNumber !== undefined) query.pageNumber = params.pageNumber;
+        if (params?.pageSize !== undefined) query.pageSize = params.pageSize;
+        if (params?.sortBy) query.sortBy = params.sortBy;
+        if (params?.sortOrder) query.sortOrder = params.sortOrder;
+
+        const response = await apiClient.get<ApiResponse<Organization[]>>('/api/organizations', { params: query });
         return response.data.data;
     },
 

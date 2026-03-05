@@ -10,6 +10,15 @@ export interface Site {
     hubCount: number;
 }
 
+export interface SiteQueryParams {
+    search?: string;      // Tìm kiếm theo tên hoặc ID
+    orgId?: number;       // Lọc theo tổ chức (OrgId)
+    pageNumber?: number;
+    pageSize?: number;
+    sortBy?: 'name' | 'address' | 'orgId' | 'siteId';  // default: siteId
+    sortOrder?: 'asc' | 'desc';                          // default: asc
+}
+
 interface ApiResponse<T> {
     message: string;
     count: number;
@@ -17,9 +26,16 @@ interface ApiResponse<T> {
 }
 
 export const siteService = {
-    getAll: async (search?: string): Promise<Site[]> => {
-        const params = search ? { search } : {};
-        const response = await apiClient.get<ApiResponse<Site[]>>('/api/site', { params });
+    getAll: async (params?: SiteQueryParams): Promise<Site[]> => {
+        const query: Record<string, any> = {};
+        if (params?.search) query.search = params.search;
+        if (params?.orgId !== undefined) query.orgId = params.orgId;
+        if (params?.pageNumber !== undefined) query.pageNumber = params.pageNumber;
+        if (params?.pageSize !== undefined) query.pageSize = params.pageSize;
+        if (params?.sortBy) query.sortBy = params.sortBy;
+        if (params?.sortOrder) query.sortOrder = params.sortOrder;
+
+        const response = await apiClient.get<ApiResponse<Site[]>>('/api/site', { params: query });
         return response.data.data;
     },
 

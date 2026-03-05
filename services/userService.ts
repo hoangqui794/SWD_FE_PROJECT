@@ -26,9 +26,26 @@ export interface UpdateUserRequest {
     siteId: number | null;
 }
 
+export interface UserQueryParams {
+    search?: string;       // Tìm kiếm theo tên hoặc email
+    isActive?: boolean;    // Lọc theo trạng thái active/inactive
+    pageNumber?: number;
+    pageSize?: number;
+    sortBy?: 'fullName' | 'email' | 'isActive' | 'roleId' | 'userId'; // default: userId
+    sortOrder?: 'asc' | 'desc'; // default: asc
+}
+
 export const userService = {
-    getAll: async (): Promise<User[]> => {
-        const response = await apiClient.get<{ message: string; count: number; data: User[] }>('/api/users');
+    getAll: async (params?: UserQueryParams): Promise<User[]> => {
+        const query: Record<string, any> = {};
+        if (params?.search) query.search = params.search;
+        if (params?.isActive !== undefined) query.isActive = params.isActive;
+        if (params?.pageNumber !== undefined) query.pageNumber = params.pageNumber;
+        if (params?.pageSize !== undefined) query.pageSize = params.pageSize;
+        if (params?.sortBy) query.sortBy = params.sortBy;
+        if (params?.sortOrder) query.sortOrder = params.sortOrder;
+
+        const response = await apiClient.get<{ message: string; count: number; data: User[] }>('/api/users', { params: query });
         return response.data.data;
     },
 

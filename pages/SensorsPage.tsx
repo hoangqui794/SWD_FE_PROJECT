@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import Layout from '../components/Layout';
 import Modal from '../components/Modal';
 import { useAuth } from '../context/AuthContext';
@@ -23,14 +23,17 @@ const SensorsPage: React.FC = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [sites, setSites] = useState<Site[]>([]);
+
+  // Server-side filters
+  const [searchTerm, setSearchTerm] = useState('');
   const [filterTypeId, setFilterTypeId] = useState<number | undefined>();
   const [filterHubId, setFilterHubId] = useState<number | undefined>();
-  const [filterSiteId, setFilterSiteId] = useState<number | undefined>();
+  const [filterStatus, setFilterStatus] = useState('');
+  const [sortBy, setSortBy] = useState<'sensorId' | 'name' | 'status' | 'hubId' | 'type'>('sensorId');
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
 
-  // Pagination state
-  const [currentPage, setCurrentPage] = useState(1);
-  const itemsPerPage = 8;
-
+  // Debounce search
+  const searchDebounce = useRef<ReturnType<typeof setTimeout>>();
 
   // Form state cho tạo sensor mới
   const [formData, setFormData] = useState<CreateSensorRequest>({
@@ -45,12 +48,32 @@ const SensorsPage: React.FC = () => {
   // Debounce ref for sensor status to handle OFF→ON→OFF bounce
   const sensorStatusTimeouts = useRef<Record<number, ReturnType<typeof setTimeout>>>({});
 
+  // Fetch sensors với đầy đủ params
+  const fetchSensors = useCallback(async (showLoading = true) => {
+    if (showLoading) setIsLoading(true);
+    setError(null);
+    try {
+      const data = await sensorService.getAll({
+        search: searchTerm || undefined,
+        hub_id: filterHubId,
+        type: filterTypeId,
+        status: filterStatus || undefined,
+        sortBy,
+        sortOrder,
+      });
+      setSensors(data);
+    } catch (error) {
+      console.error("Failed to fetch sensors", error);
+      setError('Không thể tải dữ liệu sensors. Vui lòng kiểm tra kết nối.');
+    } finally {
+      if (showLoading) setIsLoading(false);
+    }
+  }, [searchTerm, filterHubId, filterTypeId, filterStatus, sortBy, sortOrder]);
+
   // Fetch hubs and setup SignalR on mount
   useEffect(() => {
     fetchHubs();
-    if (hasRole(['ADMIN'])) {
-      fetchSites();
-    }
+    fetchSites();
     signalRService.startConnection();
 
     // Listener for sensor updates (generic)
@@ -69,7 +92,6 @@ const SensorsPage: React.FC = () => {
       const sensorId = data?.sensorId || data?.SensorId;
       const status = data?.status || (data?.isOnline ? 'Online' : 'Offline');
 
-      // Debounce 2s: handle rapid OFF→ON→OFF changes
       clearTimeout(sensorStatusTimeouts.current[sensorId]);
       sensorStatusTimeouts.current[sensorId] = setTimeout(() => {
         setSensors(prevSensors =>
@@ -92,50 +114,15 @@ const SensorsPage: React.FC = () => {
     };
   }, []);
 
-  // Fetch sensors when filters change
+  // Re-fetch khi filter/sort thay đổi (debounce cho search)
   useEffect(() => {
-    setCurrentPage(1); // Reset to first page when filters change
-    fetchSensors();
-  }, [filterTypeId, filterHubId, filterSiteId]);
+    clearTimeout(searchDebounce.current);
+    searchDebounce.current = setTimeout(() => {
+      fetchSensors();
+    }, 400);
+    return () => clearTimeout(searchDebounce.current);
+  }, [fetchSensors]);
 
-  /**
-   * Hàm gọi API để lấy danh sách sensors
-   * Sử dụng sensorService.getAll() với các tham số filter
-   */
-  /**
-   * Hàm gọi API để lấy danh sách sensors
-   * Sử dụng sensorService.getAll() với các tham số filter
-   */
-  const fetchSensors = async (showLoading = true) => {
-    if (showLoading) setIsLoading(true);
-    setError(null);
-    try {
-      let data = await sensorService.getAll(filterHubId, filterTypeId, filterSiteId);
-
-      // Frontend fallback: Nếu đã chọn lọc Site, ta lọc lại dữ liệu trả về 
-      // dựa trên thông tin Site của Hub mà Sensor đó thuộc về.
-      if (filterSiteId) {
-        // Lấy danh sách ID của các Hub thuộc Site đang chọn
-        const hubIdsInSite = hubs
-          .filter(hub => hub.siteId === filterSiteId)
-          .map(hub => hub.hubId);
-
-        // Lọc lại danh sách sensor
-        data = data.filter(sensor => hubIdsInSite.includes(sensor.hubId));
-      }
-
-      setSensors(data);
-    } catch (error) {
-      console.error("Failed to fetch sensors", error);
-      setError('Không thể tải dữ liệu sensors. Vui lòng kiểm tra kết nối.');
-    } finally {
-      if (showLoading) setIsLoading(false);
-    }
-  };
-
-  /**
-   * Hàm gọi API để lấy danh sách hubs
-   */
   const fetchHubs = async () => {
     try {
       const data = await hubService.getAll();
@@ -145,9 +132,6 @@ const SensorsPage: React.FC = () => {
     }
   };
 
-  /**
-   * Hàm gọi API để lấy danh sách sites (chỉ cho Admin)
-   */
   const fetchSites = async () => {
     try {
       const data = await siteService.getAll();
@@ -157,13 +141,9 @@ const SensorsPage: React.FC = () => {
     }
   };
 
-  /**
-   * Hàm xử lý tạo hoặc cập nhật sensor
-   */
   const handleSaveSensor = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    // Validation
     if (!formData.name.trim()) {
       showNotification('Vui lòng nhập tên sensor', 'warning');
       return;
@@ -176,7 +156,6 @@ const SensorsPage: React.FC = () => {
     setIsSubmitting(true);
     try {
       if (editingSensorId) {
-        // Cập nhật sensor
         await sensorService.update(editingSensorId, {
           name: formData.name,
           typeId: formData.typeId,
@@ -184,20 +163,12 @@ const SensorsPage: React.FC = () => {
         });
         showNotification('Cập nhật sensor thành công!', 'success');
       } else {
-        // Tạo sensor mới
         await sensorService.create(formData);
         showNotification('Tạo sensor thành công!', 'success');
       }
 
-      // Reset form & state
-      setFormData({
-        name: '',
-        typeId: 1,
-        hubId: 0
-      });
+      setFormData({ name: '', typeId: 1, hubId: 0 });
       setEditingSensorId(null);
-
-      // Đóng modal và refresh danh sách
       setIsModalOpen(false);
       fetchSensors();
 
@@ -210,9 +181,6 @@ const SensorsPage: React.FC = () => {
     }
   };
 
-  /**
-   * Hàm xử lý xóa sensor
-   */
   const confirmDeleteSensor = async () => {
     if (!deleteTargetId) return;
 
@@ -228,9 +196,6 @@ const SensorsPage: React.FC = () => {
     }
   };
 
-  /**
-   * Hàm mở modal tạo sensor mới
-   */
   const handleOpenCreateModal = () => {
     setEditingSensorId(null);
     setFormData({
@@ -241,9 +206,6 @@ const SensorsPage: React.FC = () => {
     setIsModalOpen(true);
   };
 
-  /**
-   * Hàm mở modal chỉnh sửa sensor
-   */
   const handleOpenEditModal = (sensor: Sensor) => {
     setEditingSensorId(sensor.sensorId);
     setFormData({
@@ -254,23 +216,26 @@ const SensorsPage: React.FC = () => {
     setIsModalOpen(true);
   };
 
-
-
-  /**
-   * Hàm helper để xác định màu sắc dựa trên status
-   */
   const getStatusColor = (status: string) => {
     switch (status.toLowerCase()) {
-      case 'online':
-        return 'text-emerald-500';
-      case 'offline':
-        return 'text-red-500';
-      case 'warning':
-        return 'text-yellow-500';
-      default:
-        return 'text-slate-500';
+      case 'online': return 'text-emerald-500';
+      case 'offline': return 'text-red-500';
+      case 'warning': return 'text-yellow-500';
+      default: return 'text-slate-500';
     }
   };
+
+  const getStatusDot = (status: string) => {
+    switch (status.toLowerCase()) {
+      case 'online': return 'bg-emerald-500 animate-pulse';
+      case 'offline': return 'bg-red-500';
+      case 'warning': return 'bg-yellow-500 animate-pulse';
+      default: return 'bg-slate-400';
+    }
+  };
+
+  // Filtered hubs based on sites selection for modal
+  const hubsForForm = hubs;
 
   return (
     <Layout title="Sensors Management" breadcrumb="Environment Overview">
@@ -286,8 +251,8 @@ const SensorsPage: React.FC = () => {
         )}
       </div>
 
-      {/* Stats Quick View (Optional decorative/functional) */}
-      <div className="grid grid-cols-4 gap-4 mb-6">
+      {/* Stats Quick View */}
+      <div className="grid grid-cols-3 gap-4 mb-6">
         <div className="bg-white dark:bg-white/5 p-4 rounded-xl border border-slate-200 dark:border-border-muted shadow-sm flex items-center gap-4">
           <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
             <span className="material-symbols-outlined text-primary text-xl">sensors</span>
@@ -318,43 +283,88 @@ const SensorsPage: React.FC = () => {
       </div>
 
       <div className="bg-white dark:bg-white/5 rounded-xl border border-slate-200 dark:border-border-muted overflow-hidden transition-colors shadow-sm mb-6">
-        {/* Filter Section */}
-        <div className="p-4 border-b border-slate-200 dark:border-border-muted flex gap-4 items-center justify-between bg-slate-50 dark:bg-zinc-900/30">
-          <div className="flex gap-3">
-            {hasRole(['ADMIN']) && (
-              <select
-                value={filterSiteId || ''}
-                onChange={(e) => {
-                  const val = e.target.value ? Number(e.target.value) : undefined;
-                  setFilterSiteId(val);
-                  setFilterHubId(undefined); // Reset hub when site changes
-                }}
-                className="bg-white dark:bg-zinc-900 border border-slate-200 dark:border-border-muted rounded-lg px-4 py-2 text-xs text-slate-900 dark:text-white outline-none focus:ring-1 focus:ring-primary appearance-none transition-colors"
-              >
-                <option value="">All Sites</option>
-                {sites.map(site => (
-                  <option key={site.siteId} value={site.siteId}>{site.name}</option>
-                ))}
-              </select>
-            )}
-            <select
-              value={filterTypeId || ''}
-              onChange={(e) => setFilterTypeId(e.target.value ? Number(e.target.value) : undefined)}
-              className="bg-white dark:bg-zinc-900 border border-slate-200 dark:border-border-muted rounded-lg px-4 py-2 text-xs text-slate-900 dark:text-white outline-none focus:ring-1 focus:ring-primary appearance-none transition-colors"
-            >
-              <option value="">All Types</option>
-              <option value="1">Temperature</option>
-              <option value="2">Humidity</option>
-              <option value="3">Pressure</option>
-            </select>
-            <button
-              onClick={() => fetchSensors()}
-              className="px-4 py-2 bg-white dark:bg-zinc-800 hover:bg-slate-50 dark:hover:bg-zinc-700 border border-slate-200 dark:border-border-muted rounded-lg text-xs font-bold text-slate-700 dark:text-white flex items-center gap-2 transition-all shadow-sm"
-            >
-              <span className="material-symbols-outlined text-sm">refresh</span>
-              Refresh
-            </button>
+        {/* Filter / Search Section */}
+        <div className="p-4 border-b border-slate-200 dark:border-border-muted flex flex-wrap gap-3 items-center bg-slate-50 dark:bg-zinc-900/30">
+          {/* Search */}
+          <div className="relative flex-1 min-w-[180px] max-w-xs">
+            <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm">search</span>
+            <input
+              type="text"
+              placeholder="Search sensor name..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="w-full bg-white dark:bg-zinc-900 border border-slate-200 dark:border-border-muted rounded-lg pl-9 pr-4 py-2 text-xs text-slate-900 dark:text-white outline-none focus:ring-1 focus:ring-primary transition-all shadow-sm"
+            />
           </div>
+
+          {/* Filter Hub */}
+          <select
+            value={filterHubId || ''}
+            onChange={(e) => setFilterHubId(e.target.value ? Number(e.target.value) : undefined)}
+            className="bg-white dark:bg-zinc-900 border border-slate-200 dark:border-border-muted rounded-lg px-3 py-2 text-xs text-slate-900 dark:text-white outline-none focus:ring-1 focus:ring-primary transition-all"
+          >
+            <option value="">All Hubs</option>
+            {hubs.map(hub => (
+              <option key={hub.hubId} value={hub.hubId}>{hub.name}</option>
+            ))}
+          </select>
+
+          {/* Filter Type */}
+          <select
+            value={filterTypeId || ''}
+            onChange={(e) => setFilterTypeId(e.target.value ? Number(e.target.value) : undefined)}
+            className="bg-white dark:bg-zinc-900 border border-slate-200 dark:border-border-muted rounded-lg px-3 py-2 text-xs text-slate-900 dark:text-white outline-none focus:ring-1 focus:ring-primary transition-all"
+          >
+            <option value="">All Types</option>
+            <option value="1">Temperature</option>
+            <option value="2">Humidity</option>
+            <option value="3">Pressure</option>
+          </select>
+
+          {/* Filter Status */}
+          <select
+            value={filterStatus}
+            onChange={(e) => setFilterStatus(e.target.value)}
+            className="bg-white dark:bg-zinc-900 border border-slate-200 dark:border-border-muted rounded-lg px-3 py-2 text-xs text-slate-900 dark:text-white outline-none focus:ring-1 focus:ring-primary transition-all"
+          >
+            <option value="">All Status</option>
+            <option value="Online">Online</option>
+            <option value="Offline">Offline</option>
+            <option value="Warning">Warning</option>
+          </select>
+
+          {/* Sort By */}
+          <select
+            value={sortBy}
+            onChange={(e) => setSortBy(e.target.value as any)}
+            className="bg-white dark:bg-zinc-900 border border-slate-200 dark:border-border-muted rounded-lg px-3 py-2 text-xs text-slate-900 dark:text-white outline-none focus:ring-1 focus:ring-primary transition-all"
+          >
+            <option value="sensorId">Default</option>
+            <option value="name">Name</option>
+            <option value="status">Status</option>
+            <option value="hubId">Hub</option>
+            <option value="type">Type</option>
+          </select>
+
+          {/* Sort Order */}
+          <button
+            onClick={() => setSortOrder(o => o === 'asc' ? 'desc' : 'asc')}
+            className="bg-white dark:bg-zinc-900 border border-slate-200 dark:border-border-muted rounded-lg px-3 py-2 text-xs text-slate-900 dark:text-white outline-none transition-all flex items-center gap-1"
+            title="Toggle sort order"
+          >
+            <span className="material-symbols-outlined text-sm">
+              {sortOrder === 'asc' ? 'arrow_upward' : 'arrow_downward'}
+            </span>
+            {sortOrder.toUpperCase()}
+          </button>
+
+          {/* Refresh */}
+          <button
+            onClick={() => fetchSensors()}
+            className="px-3 py-2 bg-white dark:bg-zinc-800 hover:bg-slate-50 dark:hover:bg-zinc-700 border border-slate-200 dark:border-border-muted rounded-lg text-xs font-bold text-slate-700 dark:text-white flex items-center gap-1 transition-all shadow-sm"
+          >
+            <span className="material-symbols-outlined text-sm">refresh</span>
+          </button>
         </div>
 
         {/* Loading State */}
@@ -366,110 +376,72 @@ const SensorsPage: React.FC = () => {
             </div>
           </div>
         ) : error ? (
-          /* Error State */
           <div className="p-8 text-center text-red-500 bg-red-500/10 rounded-lg m-4 border border-red-500/20">
             <p className="font-bold">Lỗi khi tải dữ liệu</p>
             <p className="text-sm opacity-80 mt-1">{error}</p>
             <button
-              onClick={fetchSensors}
+              onClick={() => fetchSensors()}
               className="mt-4 px-4 py-2 bg-red-500 text-white text-xs font-bold rounded hover:bg-red-600 transition-colors"
             >
               Thử lại
             </button>
           </div>
         ) : (
-          /* Data Table */
           <div className="overflow-x-auto">
             <table className="w-full text-left">
               <thead className="bg-slate-50 dark:bg-zinc-900/50 border-b border-slate-200 dark:border-border-muted text-slate-500 dark:text-slate-400">
                 <tr>
-                  <th className="px-6 py-4 text-[11px] font-extrabold uppercase tracking-widest text-inherit">Sensor ID</th>
                   <th className="px-6 py-4 text-[11px] font-extrabold uppercase tracking-widest text-inherit">Sensor Name</th>
                   <th className="px-6 py-4 text-[11px] font-extrabold uppercase tracking-widest text-inherit">Type</th>
                   <th className="px-6 py-4 text-[11px] font-extrabold uppercase tracking-widest text-inherit">Hub</th>
                   <th className="px-6 py-4 text-[11px] font-extrabold uppercase tracking-widest text-inherit">Status</th>
+                  <th className="px-6 py-4 text-[11px] font-extrabold uppercase tracking-widest text-inherit">Last Update</th>
                   {canManage && <th className="px-6 py-4 text-[11px] font-extrabold uppercase tracking-widest text-inherit text-right">Actions</th>}
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 dark:divide-border-muted">
-                {sensors
-                  .slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage)
-                  .map((sensor) => (
-                    <tr key={sensor.sensorId} className="hover:bg-slate-50 dark:hover:bg-white/5 transition-colors">
-                      <td className="px-6 py-4 text-xs font-bold text-slate-900 dark:text-white whitespace-nowrap">{sensor.sensorId}</td>
-                      <td className="px-6 py-4 text-sm font-medium text-slate-900 dark:text-white">{sensor.sensorName}</td>
-                      <td className="px-6 py-4 text-xs text-slate-500 dark:text-slate-400">{sensor.typeName}</td>
-                      <td className="px-6 py-4 text-xs text-slate-500 dark:text-slate-400">{sensor.hubName}</td>
-                      <td className="px-6 py-4">
-                        <span className={`text-[10px] font-bold uppercase ${getStatusColor(sensor.status)}`}>
-                          {sensor.status}
-                        </span>
-                      </td>
-                      {canManage && (
-                        <td className="px-6 py-4 text-right flex justify-end gap-2">
-                          <button
-                            onClick={() => handleOpenEditModal(sensor)}
-                            className="text-slate-400 hover:text-primary dark:hover:text-white transition-colors"
-                            title="Edit"
-                          >
-                            <span className="material-symbols-outlined text-sm">edit</span>
-                          </button>
-                          <button
-                            onClick={() => setDeleteTargetId(sensor.sensorId)}
-                            className="text-slate-400 hover:text-red-500 transition-colors"
-                            title="Delete"
-                          >
-                            <span className="material-symbols-outlined text-sm">delete</span>
-                          </button>
-                        </td>
-                      )}
-                    </tr>
-                  ))}
-                {sensors.length === 0 && (
+                {sensors.length === 0 ? (
                   <tr>
-                    <td colSpan={5} className="px-6 py-8 text-center text-slate-500 text-sm">
+                    <td colSpan={6} className="px-6 py-8 text-center text-slate-500 text-sm">
                       Không tìm thấy sensor nào.
                     </td>
                   </tr>
-                )}
+                ) : sensors.map((sensor) => (
+                  <tr key={sensor.sensorId} className="hover:bg-slate-50 dark:hover:bg-white/5 transition-colors">
+                    <td className="px-6 py-4 text-sm font-medium text-slate-900 dark:text-white">{sensor.sensorName}</td>
+                    <td className="px-6 py-4 text-xs text-slate-500 dark:text-slate-400">{sensor.typeName}</td>
+                    <td className="px-6 py-4 text-xs text-slate-500 dark:text-slate-400">{sensor.hubName}</td>
+                    <td className="px-6 py-4">
+                      <span className={`inline-flex items-center gap-1 text-[10px] font-bold uppercase ${getStatusColor(sensor.status)}`}>
+                        <span className={`w-1.5 h-1.5 rounded-full ${getStatusDot(sensor.status)}`} />
+                        {sensor.status}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4 text-xs text-slate-400 dark:text-slate-500">
+                      {sensor.lastUpdate ? new Date(sensor.lastUpdate).toLocaleString() : '—'}
+                    </td>
+                    {canManage && (
+                      <td className="px-6 py-4 text-right flex justify-end gap-2">
+                        <button
+                          onClick={() => handleOpenEditModal(sensor)}
+                          className="text-slate-400 hover:text-primary dark:hover:text-white transition-colors"
+                          title="Edit"
+                        >
+                          <span className="material-symbols-outlined text-sm">edit</span>
+                        </button>
+                        <button
+                          onClick={() => setDeleteTargetId(sensor.sensorId)}
+                          className="text-slate-400 hover:text-red-500 transition-colors"
+                          title="Delete"
+                        >
+                          <span className="material-symbols-outlined text-sm">delete</span>
+                        </button>
+                      </td>
+                    )}
+                  </tr>
+                ))}
               </tbody>
             </table>
-          </div>
-        )}
-
-        {/* Pagination Controls */}
-        {!isLoading && sensors.length > 0 && (
-          <div className="p-4 border-t border-slate-200 dark:border-border-muted bg-slate-50/50 dark:bg-zinc-900/10 flex items-center justify-between">
-            <div className="text-xs text-slate-500">
-              Showing <span className="font-bold text-slate-900 dark:text-white">{(currentPage - 1) * itemsPerPage + 1}</span> to <span className="font-bold text-slate-900 dark:text-white">{Math.min(currentPage * itemsPerPage, sensors.length)}</span> of <span className="font-bold text-slate-900 dark:text-white">{sensors.length}</span> sensors
-            </div>
-            <div className="flex gap-2">
-              <button
-                onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
-                disabled={currentPage === 1}
-                className="px-3 py-1.5 border border-slate-200 dark:border-border-muted rounded-lg text-xs font-bold text-slate-700 dark:text-white disabled:opacity-30 transition-all hover:bg-slate-100 dark:hover:bg-zinc-800"
-              >
-                Previous
-              </button>
-              <div className="flex gap-1">
-                {Array.from({ length: Math.ceil(sensors.length / itemsPerPage) }, (_, i) => i + 1).map(page => (
-                  <button
-                    key={page}
-                    onClick={() => setCurrentPage(page)}
-                    className={`w-8 h-8 rounded-lg text-xs font-bold transition-all ${currentPage === page ? 'bg-slate-900 dark:bg-white text-white dark:text-black scale-105' : 'text-slate-500 hover:bg-slate-100 dark:hover:bg-zinc-800'}`}
-                  >
-                    {page}
-                  </button>
-                ))}
-              </div>
-              <button
-                onClick={() => setCurrentPage(p => Math.min(Math.ceil(sensors.length / itemsPerPage), p + 1))}
-                disabled={currentPage === Math.ceil(sensors.length / itemsPerPage)}
-                className="px-3 py-1.5 border border-slate-200 dark:border-border-muted rounded-lg text-xs font-bold text-slate-700 dark:text-white disabled:opacity-30 transition-all hover:bg-slate-100 dark:hover:bg-zinc-800"
-              >
-                Next
-              </button>
-            </div>
           </div>
         )}
       </div>
@@ -483,7 +455,7 @@ const SensorsPage: React.FC = () => {
             <input
               value={formData.name}
               onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-              className="w-full bg-slate-50 dark:bg-zinc-900 border border-slate-200 dark:border-border-muted rounded-lg px-4 py-2.5 text-sm text-slate-910 dark:text-white focus:ring-1 focus:ring-primary outline-none transition-colors"
+              className="w-full bg-slate-50 dark:bg-zinc-900 border border-slate-200 dark:border-border-muted rounded-lg px-4 py-2.5 text-sm text-slate-900 dark:text-white focus:ring-1 focus:ring-primary outline-none transition-colors"
               placeholder="e.g. Temp-Sensor-01"
               required
             />
@@ -497,11 +469,11 @@ const SensorsPage: React.FC = () => {
               <select
                 value={formData.hubId}
                 onChange={(e) => setFormData({ ...formData, hubId: Number(e.target.value) })}
-                className="w-full bg-slate-50 dark:bg-zinc-900 border border-slate-200 dark:border-border-muted rounded-lg p-2.5 text-xs text-slate-910 dark:text-white focus:ring-1 focus:ring-primary outline-none transition-colors appearance-none"
+                className="w-full bg-slate-50 dark:bg-zinc-900 border border-slate-200 dark:border-border-muted rounded-lg p-2.5 text-xs text-slate-900 dark:text-white focus:ring-1 focus:ring-primary outline-none transition-colors appearance-none"
                 required
               >
                 <option value="0">Select Hub</option>
-                {hubs.map(hub => (
+                {hubsForForm.map(hub => (
                   <option key={hub.hubId} value={hub.hubId} className="bg-white text-slate-900">
                     {hub.name} ({hub.siteName})
                   </option>
@@ -516,7 +488,7 @@ const SensorsPage: React.FC = () => {
               <select
                 value={formData.typeId}
                 onChange={(e) => setFormData({ ...formData, typeId: Number(e.target.value) })}
-                className="w-full bg-slate-50 dark:bg-zinc-900 border border-slate-200 dark:border-border-muted rounded-lg p-2.5 text-xs text-slate-910 dark:text-white focus:ring-1 focus:ring-primary outline-none transition-colors appearance-none"
+                className="w-full bg-slate-50 dark:bg-zinc-900 border border-slate-200 dark:border-border-muted rounded-lg p-2.5 text-xs text-slate-900 dark:text-white focus:ring-1 focus:ring-primary outline-none transition-colors appearance-none"
                 required
               >
                 <option value="1">Temperature</option>
@@ -582,7 +554,7 @@ const SensorsPage: React.FC = () => {
           </div>
         </div>
       </Modal>
-    </Layout >
+    </Layout>
   );
 };
 

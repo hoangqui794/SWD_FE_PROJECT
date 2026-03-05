@@ -20,6 +20,18 @@ export interface CreateSensorRequest {
     hubId: number;     // ID của hub
 }
 
+// Interface query params theo Swagger spec
+export interface SensorQueryParams {
+    hub_id?: number;     // Lọc theo Hub ID
+    type?: number;       // Lọc theo loại cảm biến (TypeId)
+    search?: string;     // Tìm kiếm theo tên cảm biến
+    status?: string;     // Lọc theo trạng thái (Active, Inactive...)
+    pageNumber?: number;
+    pageSize?: number;
+    sortBy?: 'name' | 'status' | 'hubId' | 'type' | 'sensorId';
+    sortOrder?: 'asc' | 'desc';
+}
+
 // Interface cho API response
 interface ApiResponse<T> {
     message: string;
@@ -31,25 +43,25 @@ interface ApiResponse<T> {
 // Service chứa các hàm gọi API
 export const sensorService = {
     /**
-     * Lấy danh sách tất cả sensors
-     * @param hubId - Optional: Lọc theo Hub ID
-     * @param typeId - Optional: Lọc theo loại sensor (1: Temperature, 2: Humidity, 3: Pressure)
-     * @returns Promise chứa mảng Sensor[]
+     * Lấy danh sách tất cả sensors với đầy đủ filter theo Swagger
      */
-    getAll: async (hubId?: number, typeId?: number, siteId?: number): Promise<Sensor[]> => {
-        const params: any = {};
-        // API backend sử dụng snake_case cho parameters
-        if (hubId) params.hub_id = hubId;
-        if (typeId) params.type = typeId;
-        if (siteId) params.site_id = siteId;
+    getAll: async (params?: SensorQueryParams): Promise<Sensor[]> => {
+        const query: Record<string, any> = {};
+        if (params?.hub_id) query.hub_id = params.hub_id;
+        if (params?.type) query.type = params.type;
+        if (params?.search) query.search = params.search;
+        if (params?.status) query.status = params.status;
+        if (params?.pageNumber !== undefined) query.pageNumber = params.pageNumber;
+        if (params?.pageSize !== undefined) query.pageSize = params.pageSize;
+        if (params?.sortBy) query.sortBy = params.sortBy;
+        if (params?.sortOrder) query.sortOrder = params.sortOrder;
 
-        const response = await apiClient.get<ApiResponse<Sensor[]>>('/api/sensors', { params });
+        const response = await apiClient.get<ApiResponse<Sensor[]>>('/api/sensors', { params: query });
         return response.data.data;
     },
 
     /**
      * Tạo sensor mới
-     * @param data - Dữ liệu sensor cần tạo
      */
     create: async (data: CreateSensorRequest): Promise<void> => {
         await apiClient.post('/api/sensors', data);
@@ -57,8 +69,6 @@ export const sensorService = {
 
     /**
      * Cập nhật thông tin sensor
-     * @param id - ID của sensor cần cập nhật
-     * @param data - Dữ liệu mới
      */
     update: async (id: number, data: Partial<CreateSensorRequest>): Promise<void> => {
         await apiClient.put(`/api/sensors/${id}`, data);
@@ -66,7 +76,6 @@ export const sensorService = {
 
     /**
      * Xóa sensor
-     * @param id - ID của sensor cần xóa
      */
     delete: async (id: number): Promise<void> => {
         await apiClient.delete(`/api/sensors/${id}`);

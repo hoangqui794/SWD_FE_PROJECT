@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import Layout from '../components/Layout';
 import Modal from '../components/Modal';
 import { useAuth } from '../context/AuthContext';
@@ -43,6 +43,9 @@ const AlertsPage: React.FC = () => {
     const [editingRuleId, setEditingRuleId] = useState<number | null>(null); // State to track editing
     const [ruleSearchTerm, setRuleSearchTerm] = useState("");
     const [rulePriorityFilter, setRulePriorityFilter] = useState("All");
+    const [ruleSortBy, setRuleSortBy] = useState<'ruleId' | 'name' | 'priority' | 'isActive' | 'sensorId'>('ruleId');
+    const [ruleSortOrder, setRuleSortOrder] = useState<'asc' | 'desc'>('asc');
+    const ruleSearchDebounce = useRef<ReturnType<typeof setTimeout>>();
     const [ruleFormData, setRuleFormData] = useState<CreateAlertRuleRequest>({
         sensorId: 0,
         name: '',
@@ -91,19 +94,34 @@ const AlertsPage: React.FC = () => {
         }
     };
 
-    const fetchRules = async () => {
-        setIsLoading(true);
+    const fetchRules = useCallback(async (showLoading = true) => {
+        if (showLoading) setIsLoading(true);
         setError(null);
         try {
-            const data = await alertService.getRules();
+            const data = await alertService.getRules({
+                search: ruleSearchTerm || undefined,
+                priority: rulePriorityFilter !== 'All' ? rulePriorityFilter : undefined,
+                sortBy: ruleSortBy,
+                sortOrder: ruleSortOrder,
+            });
             setRules(data);
         } catch (error) {
             console.error("Failed to fetch rules", error);
             setError('Failed to load alert rules.');
         } finally {
-            setIsLoading(false);
+            if (showLoading) setIsLoading(false);
         }
-    };
+    }, [ruleSearchTerm, rulePriorityFilter, ruleSortBy, ruleSortOrder]);
+
+    // Debounce for rule search
+    useEffect(() => {
+        if (activeTab !== 'rules') return;
+        clearTimeout(ruleSearchDebounce.current);
+        ruleSearchDebounce.current = setTimeout(() => {
+            fetchRules();
+        }, 400);
+        return () => clearTimeout(ruleSearchDebounce.current);
+    }, [fetchRules, activeTab]);
 
     const fetchSensors = async () => {
         try {
@@ -458,32 +476,61 @@ const AlertsPage: React.FC = () => {
                 {/* TAB 2: RULES TABLE */}
                 {activeTab === 'rules' && !isLoading && (
                     <>
-                        <div className="p-4 border-b border-slate-200 dark:border-border-muted flex flex-wrap gap-4 items-center justify-between bg-slate-50/50 dark:bg-zinc-900/30">
-                            <div className="flex flex-wrap gap-4 items-center w-full md:w-auto">
-                                <div className="relative w-full max-w-sm">
-                                    <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm">search</span>
-                                    <input
-                                        value={ruleSearchTerm}
-                                        onChange={(e) => setRuleSearchTerm(e.target.value)}
-                                        className="w-full bg-white dark:bg-background-dark border border-slate-200 dark:border-border-muted text-xs rounded-lg pl-10 focus:ring-1 focus:ring-primary h-9 text-slate-900 dark:text-white transition-colors"
-                                        placeholder="Search rules or sensors..."
-                                    />
-                                </div>
-
-                                <div className="relative w-full md:w-48">
-                                    <select
-                                        value={rulePriorityFilter}
-                                        onChange={(e) => setRulePriorityFilter(e.target.value)}
-                                        className="w-full bg-white dark:bg-background-dark border border-slate-200 dark:border-border-muted text-xs rounded-lg px-3 focus:ring-1 focus:ring-primary h-9 text-slate-900 dark:text-white transition-colors appearance-none"
-                                    >
-                                        <option value="All">All Priorities</option>
-                                        <option value="High">High</option>
-                                        <option value="Medium">Medium</option>
-                                        <option value="Low">Low</option>
-                                    </select>
-                                    <span className="material-symbols-outlined absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none text-sm">expand_more</span>
-                                </div>
+                        <div className="p-4 border-b border-slate-200 dark:border-border-muted flex flex-wrap gap-3 items-center bg-slate-50/50 dark:bg-zinc-900/30">
+                            {/* Search */}
+                            <div className="relative flex-1 min-w-[180px] max-w-sm">
+                                <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm">search</span>
+                                <input
+                                    value={ruleSearchTerm}
+                                    onChange={(e) => setRuleSearchTerm(e.target.value)}
+                                    className="w-full bg-white dark:bg-background-dark border border-slate-200 dark:border-border-muted text-xs rounded-lg pl-10 pr-4 focus:ring-1 focus:ring-primary h-9 text-slate-900 dark:text-white transition-colors"
+                                    placeholder="Search rules or sensors..."
+                                />
                             </div>
+
+                            {/* Priority Filter */}
+                            <select
+                                value={rulePriorityFilter}
+                                onChange={(e) => setRulePriorityFilter(e.target.value)}
+                                className="bg-white dark:bg-background-dark border border-slate-200 dark:border-border-muted text-xs rounded-lg px-3 focus:ring-1 focus:ring-primary h-9 text-slate-900 dark:text-white transition-colors"
+                            >
+                                <option value="All">All Priorities</option>
+                                <option value="High">High</option>
+                                <option value="Medium">Medium</option>
+                                <option value="Low">Low</option>
+                            </select>
+
+                            {/* Sort By */}
+                            <select
+                                value={ruleSortBy}
+                                onChange={(e) => setRuleSortBy(e.target.value as any)}
+                                className="bg-white dark:bg-background-dark border border-slate-200 dark:border-border-muted text-xs rounded-lg px-3 focus:ring-1 focus:ring-primary h-9 text-slate-900 dark:text-white transition-colors"
+                            >
+                                <option value="ruleId">Default</option>
+                                <option value="name">Name</option>
+                                <option value="priority">Priority</option>
+                                <option value="isActive">Status</option>
+                                <option value="sensorId">Sensor</option>
+                            </select>
+
+                            {/* Sort Order */}
+                            <button
+                                onClick={() => setRuleSortOrder(o => o === 'asc' ? 'desc' : 'asc')}
+                                className="bg-white dark:bg-background-dark border border-slate-200 dark:border-border-muted rounded-lg px-3 h-9 text-xs text-slate-900 dark:text-white transition-all flex items-center gap-1"
+                            >
+                                <span className="material-symbols-outlined text-sm">
+                                    {ruleSortOrder === 'asc' ? 'arrow_upward' : 'arrow_downward'}
+                                </span>
+                                {ruleSortOrder.toUpperCase()}
+                            </button>
+
+                            {/* Refresh */}
+                            <button
+                                onClick={() => fetchRules()}
+                                className="px-3 h-9 bg-white dark:bg-zinc-800 hover:bg-slate-50 border border-slate-200 dark:border-border-muted rounded-lg text-xs text-slate-700 dark:text-white flex items-center gap-1 transition-all"
+                            >
+                                <span className="material-symbols-outlined text-sm">refresh</span>
+                            </button>
                         </div>
 
                         <div className="overflow-x-auto">
@@ -499,47 +546,34 @@ const AlertsPage: React.FC = () => {
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-slate-100 dark:divide-border-muted">
-                                    {rules
-                                        .filter(rule => {
-                                            const matchesSearch = rule.name.toLowerCase().includes(ruleSearchTerm.toLowerCase()) ||
-                                                rule.sensorName.toLowerCase().includes(ruleSearchTerm.toLowerCase());
-                                            const matchesPriority = rulePriorityFilter === 'All' || rule.priority === rulePriorityFilter;
-                                            return matchesSearch && matchesPriority;
-                                        })
-                                        .map((rule) => (
-                                            <tr key={rule.ruleId} className="hover:bg-slate-50 dark:hover:bg-white/5 transition-colors">
-                                                <td className="px-6 py-4 text-xs font-bold text-slate-900 dark:text-white">{rule.name}</td>
-                                                <td className="px-6 py-4 text-xs text-slate-500 dark:text-slate-300">{rule.sensorName}</td>
-                                                <td className="px-6 py-4 text-xs text-slate-400 italic">{rule.conditionType}</td>
-                                                <td className="px-6 py-4 text-xs font-mono text-primary font-bold">
-                                                    {rule.minVal} - {rule.maxVal}
+                                    {rules.length === 0 ? (
+                                        <tr><td colSpan={6} className="p-8 text-center text-slate-500 text-sm">No alert rules found matching your filters.</td></tr>
+                                    ) : rules.map((rule) => (
+                                        <tr key={rule.ruleId} className="hover:bg-slate-50 dark:hover:bg-white/5 transition-colors">
+                                            <td className="px-6 py-4 text-xs font-bold text-slate-900 dark:text-white">{rule.name}</td>
+                                            <td className="px-6 py-4 text-xs text-slate-500 dark:text-slate-300">{rule.sensorName}</td>
+                                            <td className="px-6 py-4 text-xs text-slate-400 italic">{rule.conditionType}</td>
+                                            <td className="px-6 py-4 text-xs font-mono text-primary font-bold">
+                                                {rule.minVal} - {rule.maxVal}
+                                            </td>
+                                            <td className="px-6 py-4">
+                                                <span className={`px-2 py-1 border text-[10px] font-bold uppercase rounded-md shadow-sm ${getSeverityStyle(rule.priority)}`}>
+                                                    {rule.priority}
+                                                </span>
+                                            </td>
+                                            {canManage && (
+                                                <td className="px-6 py-4 text-right">
+                                                    <button
+                                                        onClick={() => handleEditRule(rule)}
+                                                        className="p-1 text-slate-500 hover:text-white transition-colors"
+                                                        title="Edit Rule"
+                                                    >
+                                                        <span className="material-symbols-outlined text-sm">edit</span>
+                                                    </button>
                                                 </td>
-                                                <td className="px-6 py-4">
-                                                    <span className={`px-2 py-1 border text-[10px] font-bold uppercase rounded-md shadow-sm ${getSeverityStyle(rule.priority)}`}>
-                                                        {rule.priority}
-                                                    </span>
-                                                </td>
-                                                {canManage && (
-                                                    <td className="px-6 py-4 text-right">
-                                                        <button
-                                                            onClick={() => handleEditRule(rule)}
-                                                            className="p-1 text-slate-500 hover:text-white transition-colors"
-                                                            title="Edit Rule"
-                                                        >
-                                                            <span className="material-symbols-outlined text-sm">edit</span>
-                                                        </button>
-                                                    </td>
-                                                )}
-                                            </tr>
-                                        ))}
-                                    {rules.filter(rule => {
-                                        const matchesSearch = rule.name.toLowerCase().includes(ruleSearchTerm.toLowerCase()) ||
-                                            rule.sensorName.toLowerCase().includes(ruleSearchTerm.toLowerCase());
-                                        const matchesPriority = rulePriorityFilter === 'All' || rule.priority === rulePriorityFilter;
-                                        return matchesSearch && matchesPriority;
-                                    }).length === 0 && (
-                                            <tr><td colSpan={7} className="p-8 text-center text-slate-500 text-sm">No alert rules found matching your filters.</td></tr>
-                                        )}
+                                            )}
+                                        </tr>
+                                    ))}
                                 </tbody>
                             </table>
                         </div>

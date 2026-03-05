@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import Layout from '../components/Layout';
 import Modal from '../components/Modal';
 import { useAuth } from '../context/AuthContext';
@@ -17,8 +17,15 @@ const HubsPage: React.FC = () => {
   const [hubs, setHubs] = useState<Hub[]>([]);
   const [sites, setSites] = useState<Site[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [searchTerm, setSearchTerm] = useState('');
 
+  // Filter / Search state (server-side)
+  const [searchTerm, setSearchTerm] = useState('');
+  const [filterOnline, setFilterOnline] = useState<'' | 'true' | 'false'>('');
+  const [sortBy, setSortBy] = useState<'hubId' | 'name' | 'macAddress' | 'isOnline' | 'lastHandshake'>('hubId');
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
+
+  // Debounce search
+  const searchDebounce = useRef<ReturnType<typeof setTimeout>>();
 
   // Form State
   const [formData, setFormData] = useState({
@@ -30,11 +37,25 @@ const HubsPage: React.FC = () => {
   // Debounce ref for hub status to handle OFF→ON→OFF bounce
   const hubStatusTimeouts = useRef<Record<number, ReturnType<typeof setTimeout>>>({});
 
+  const fetchHubs = useCallback(async (showLoading = true) => {
+    if (showLoading) setIsLoading(true);
+    try {
+      const params: any = { sortBy, sortOrder };
+      if (searchTerm) params.search = searchTerm;
+      if (filterOnline !== '') params.isOnline = filterOnline === 'true';
+      const data = await hubService.getAll(params);
+      setHubs(data);
+    } catch (error) {
+      console.error("Failed to fetch hubs", error);
+    } finally {
+      if (showLoading) setIsLoading(false);
+    }
+  }, [searchTerm, filterOnline, sortBy, sortOrder]);
+
   useEffect(() => {
-    fetchHubs();
     fetchSites();
 
-    // Ensure connection is started
+    // Ensure SignalR connection is started
     signalRService.startConnection();
 
     // Listen for realtime hub status with 2s debounce
@@ -43,7 +64,6 @@ const HubsPage: React.FC = () => {
       const hubId = data?.hubId || data?.HubId;
       const isOnline = data?.isOnline !== undefined ? data.isOnline : data?.IsOnline;
 
-      // Debounce 2s: if status changes rapidly (OFF→ON→OFF), only apply the last one
       clearTimeout(hubStatusTimeouts.current[hubId]);
       hubStatusTimeouts.current[hubId] = setTimeout(() => {
         setHubs(prev => prev.map(h => h.hubId === hubId ? { ...h, isOnline: !!isOnline } : h));
@@ -60,17 +80,14 @@ const HubsPage: React.FC = () => {
     };
   }, []);
 
-  const fetchHubs = async (showLoading = true) => {
-    if (showLoading) setIsLoading(true);
-    try {
-      const data = await hubService.getAll();
-      setHubs(data);
-    } catch (error) {
-      console.error("Failed to fetch hubs", error);
-    } finally {
-      if (showLoading) setIsLoading(false);
-    }
-  };
+  // Re-fetch khi filter/sort thay đổi (debounce cho search)
+  useEffect(() => {
+    clearTimeout(searchDebounce.current);
+    searchDebounce.current = setTimeout(() => {
+      fetchHubs();
+    }, 400);
+    return () => clearTimeout(searchDebounce.current);
+  }, [fetchHubs]);
 
   const fetchSites = async () => {
     try {
@@ -115,7 +132,7 @@ const HubsPage: React.FC = () => {
 
       setIsModalOpen(false);
       setFormData({ siteId: 0, name: "", macAddress: "" });
-      fetchHubs(); // Refresh list
+      fetchHubs();
       showNotification(editingId ? "Hub updated successfully!" : "Hub created successfully!", 'success');
     } catch (error: any) {
       console.error("Failed to save hub", error);
@@ -134,12 +151,10 @@ const HubsPage: React.FC = () => {
     if (deleteTargetId) {
       try {
         await hubService.delete(deleteTargetId);
-        // Remove locally
         setHubs(hubs.filter(hub => hub.hubId !== deleteTargetId));
         showNotification("Hub deleted successfully!", 'success');
       } catch (error: any) {
         console.error("Failed to delete hub", error);
-        // If 404, it's already gone, so update UI to reflect that
         if (error.response && error.response.status === 404) {
           setHubs(hubs.filter(hub => hub.hubId !== deleteTargetId));
           showNotification("Hub was already deleted.", 'warning');
@@ -167,53 +182,83 @@ const HubsPage: React.FC = () => {
       </div>
       <div className="bg-white dark:bg-white/5 rounded-xl border border-slate-200 dark:border-border-muted overflow-hidden transition-colors shadow-sm">
         {/* Filter/Search Section */}
-        <div className="p-4 border-b border-slate-200 dark:border-border-muted bg-slate-50 dark:bg-zinc-900/30">
-          <div className="relative max-w-sm">
+        <div className="p-4 border-b border-slate-200 dark:border-border-muted bg-slate-50 dark:bg-zinc-900/30 flex flex-wrap gap-3 items-center">
+          {/* Search */}
+          <div className="relative flex-1 min-w-[200px] max-w-sm">
             <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm">search</span>
             <input
               type="text"
-              placeholder="Search hubs by name, site, or MAC..."
+              placeholder="Search by name or MAC..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               className="w-full bg-white dark:bg-zinc-900 border border-slate-200 dark:border-border-muted rounded-lg pl-9 pr-4 py-2 text-xs text-slate-900 dark:text-white outline-none focus:ring-1 focus:ring-primary transition-all shadow-sm"
             />
           </div>
+          {/* Filter Online */}
+          <select
+            value={filterOnline}
+            onChange={(e) => setFilterOnline(e.target.value as '' | 'true' | 'false')}
+            className="bg-white dark:bg-zinc-900 border border-slate-200 dark:border-border-muted rounded-lg px-3 py-2 text-xs text-slate-900 dark:text-white outline-none focus:ring-1 focus:ring-primary transition-all"
+          >
+            <option value="">All Status</option>
+            <option value="true">Online</option>
+            <option value="false">Offline</option>
+          </select>
+          {/* Sort By */}
+          <select
+            value={sortBy}
+            onChange={(e) => setSortBy(e.target.value as any)}
+            className="bg-white dark:bg-zinc-900 border border-slate-200 dark:border-border-muted rounded-lg px-3 py-2 text-xs text-slate-900 dark:text-white outline-none focus:ring-1 focus:ring-primary transition-all"
+          >
+            <option value="hubId"> Default</option>
+            <option value="name">Name</option>
+            <option value="macAddress">MAC</option>
+            <option value="isOnline"> Status</option>
+            <option value="lastHandshake"> Last Seen</option>
+          </select>
+          {/* Sort Order */}
+          <button
+            onClick={() => setSortOrder(o => o === 'asc' ? 'desc' : 'asc')}
+            className="bg-white dark:bg-zinc-900 border border-slate-200 dark:border-border-muted rounded-lg px-3 py-2 text-xs text-slate-900 dark:text-white outline-none transition-all flex items-center gap-1"
+            title="Toggle sort order"
+          >
+            <span className="material-symbols-outlined text-sm">
+              {sortOrder === 'asc' ? 'arrow_upward' : 'arrow_downward'}
+            </span>
+            {sortOrder.toUpperCase()}
+          </button>
         </div>
 
         <div className="overflow-x-auto">
           <table className="w-full text-left">
-            {/* ... header ... */}
             <thead className="border-b border-slate-200 dark:border-border-muted bg-slate-50 dark:bg-zinc-900/50">
               <tr>
                 <th className="px-6 py-4 text-[11px] font-extrabold uppercase tracking-widest text-inherit">Hub Name</th>
                 <th className="px-6 py-4 text-[11px] font-extrabold uppercase tracking-widest text-inherit">Site Name</th>
                 <th className="px-6 py-4 text-[11px] font-extrabold uppercase tracking-widest text-inherit">MAC Address</th>
                 <th className="px-6 py-4 text-[11px] font-extrabold uppercase tracking-widest text-inherit">Status</th>
+                <th className="px-6 py-4 text-[11px] font-extrabold uppercase tracking-widest text-inherit">Last Handshake</th>
                 {canManage && <th className="px-6 py-4 text-[11px] font-extrabold uppercase tracking-widest text-inherit text-right">Actions</th>}
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 dark:divide-border-muted">
               {isLoading ? (
-                <tr><td colSpan={5} className="px-6 py-8 text-center text-slate-500">Loading hubs...</td></tr>
-              ) : hubs.filter(hub =>
-                hub.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                hub.siteName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                hub.macAddress.toLowerCase().includes(searchTerm.toLowerCase())
-              ).length === 0 ? (
-                <tr><td colSpan={5} className="px-6 py-8 text-center text-slate-500 text-sm">No hubs found matching your search.</td></tr>
-              ) : hubs.filter(hub =>
-                hub.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                hub.siteName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                hub.macAddress.toLowerCase().includes(searchTerm.toLowerCase())
-              ).map((hub) => (
+                <tr><td colSpan={6} className="px-6 py-8 text-center text-slate-500">Loading hubs...</td></tr>
+              ) : hubs.length === 0 ? (
+                <tr><td colSpan={6} className="px-6 py-8 text-center text-slate-500 text-sm">No hubs found.</td></tr>
+              ) : hubs.map((hub) => (
                 <tr key={hub.hubId} className="hover:bg-slate-50 dark:hover:bg-white/5 transition-colors">
                   <td className="px-6 py-4 text-sm font-bold text-slate-900 dark:text-white">{hub.name}</td>
                   <td className="px-6 py-4 text-xs text-slate-500 dark:text-slate-400">{hub.siteName}</td>
                   <td className="px-6 py-4 text-xs font-mono text-slate-500 dark:text-slate-400">{hub.macAddress}</td>
                   <td className="px-6 py-4">
-                    <span className={`text-[10px] font-bold uppercase ${hub.isOnline ? 'text-emerald-500' : 'text-red-500'}`}>
+                    <span className={`inline-flex items-center gap-1 text-[10px] font-bold uppercase ${hub.isOnline ? 'text-emerald-500' : 'text-red-500'}`}>
+                      <span className={`w-1.5 h-1.5 rounded-full ${hub.isOnline ? 'bg-emerald-500 animate-pulse' : 'bg-red-500'}`} />
                       {hub.isOnline ? 'ONLINE' : 'OFFLINE'}
                     </span>
+                  </td>
+                  <td className="px-6 py-4 text-xs text-slate-400 dark:text-slate-500">
+                    {hub.lastHandshake ? new Date(hub.lastHandshake).toLocaleString() : '—'}
                   </td>
                   {canManage && (
                     <td className="px-6 py-4 text-right flex justify-end gap-2">
@@ -269,7 +314,7 @@ const HubsPage: React.FC = () => {
             <input
               value={formData.macAddress}
               onChange={(e) => setFormData({ ...formData, macAddress: e.target.value })}
-              className={`w-full bg-slate-50 dark:bg-zinc-900 border border-slate-200 dark:border-border-muted rounded-lg px-4 py-2.5 text-sm font-mono focus:ring-1 focus:ring-primary outline-none text-slate-900 dark:text-white transition-colors`}
+              className="w-full bg-slate-50 dark:bg-zinc-900 border border-slate-200 dark:border-border-muted rounded-lg px-4 py-2.5 text-sm font-mono focus:ring-1 focus:ring-primary outline-none text-slate-900 dark:text-white transition-colors"
               placeholder="00:00:00:00:00:00"
             />
           </div>
@@ -321,7 +366,7 @@ const HubsPage: React.FC = () => {
           </div>
         </div>
       </Modal>
-    </Layout >
+    </Layout>
   );
 };
 

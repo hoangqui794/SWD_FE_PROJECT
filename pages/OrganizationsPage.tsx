@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import Layout from '../components/Layout';
 import Modal from '../components/Modal';
 import { useAuth } from '../context/AuthContext';
@@ -16,46 +16,57 @@ const OrganizationsPage: React.FC = () => {
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
 
+    // Server-side filters
+    const [searchTerm, setSearchTerm] = useState('');
+    const [sortBy, setSortBy] = useState<'orgId' | 'name' | 'createdAt'>('orgId');
+    const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
+
+    // Debounce search
+    const searchDebounce = useRef<ReturnType<typeof setTimeout>>();
+
     // Form State
     const [editingId, setEditingId] = useState<number | null>(null);
-    const [formData, setFormData] = useState({
-        name: "",
-        description: ""
-    });
+    const [formData, setFormData] = useState({ name: '', description: '' });
 
     // Delete Confirmation State
     const [deleteTargetId, setDeleteTargetId] = useState<number | null>(null);
 
-    useEffect(() => {
-        fetchOrganizations();
-    }, []);
-
-    const fetchOrganizations = async () => {
-        setIsLoading(true);
+    const fetchOrganizations = useCallback(async (showLoading = true) => {
+        if (showLoading) setIsLoading(true);
         setError(null);
         try {
-            const data = await organizationService.getAll();
+            const data = await organizationService.getAll({
+                search: searchTerm || undefined,
+                sortBy,
+                sortOrder,
+            });
             setOrganizations(data);
         } catch (error) {
-            console.error("Failed to fetch organizations", error);
+            console.error('Failed to fetch organizations', error);
             setError('Connection error. Please check your backend server.');
         } finally {
-            setIsLoading(false);
+            if (showLoading) setIsLoading(false);
         }
-    };
+    }, [searchTerm, sortBy, sortOrder]);
+
+    // Re-fetch khi filter/sort thay đổi (debounce search)
+    useEffect(() => {
+        clearTimeout(searchDebounce.current);
+        searchDebounce.current = setTimeout(() => {
+            fetchOrganizations();
+        }, 400);
+        return () => clearTimeout(searchDebounce.current);
+    }, [fetchOrganizations]);
 
     const handleAddNew = () => {
         setEditingId(null);
-        setFormData({ name: "", description: "" });
+        setFormData({ name: '', description: '' });
         setIsModalOpen(true);
     };
 
     const handleEdit = (org: Organization) => {
         setEditingId(org.orgId);
-        setFormData({
-            name: org.name,
-            description: org.description
-        });
+        setFormData({ name: org.name, description: org.description });
         setIsModalOpen(true);
     };
 
@@ -70,9 +81,8 @@ const OrganizationsPage: React.FC = () => {
                 setOrganizations(organizations.filter(org => org.orgId !== deleteTargetId));
                 showNotification('Organization deleted successfully!', 'success');
             } catch (e: any) {
-                console.error("Failed to delete organization", e);
-                const msg = e.response?.data?.message || e.message || "Unknown error";
-                showNotification(`Failed to delete organization: ${msg}`, 'error');
+                console.error('Failed to delete organization', e);
+                showNotification('Failed to delete organization: ' + (e.response?.data?.message || e.message || 'Unknown error'), 'error');
             } finally {
                 setDeleteTargetId(null);
             }
@@ -81,7 +91,7 @@ const OrganizationsPage: React.FC = () => {
 
     const handleSubmit = async () => {
         if (!formData.name.trim()) {
-            showNotification("Organization name is required", "warning");
+            showNotification('Organization name is required', 'warning');
             return;
         }
 
@@ -91,20 +101,19 @@ const OrganizationsPage: React.FC = () => {
                     name: formData.name,
                     description: formData.description
                 });
-                showNotification("Organization updated successfully!", "success");
+                showNotification('Organization updated successfully!', 'success');
             } else {
                 await organizationService.create({
                     name: formData.name,
                     description: formData.description
                 });
-                showNotification("Organization created successfully!", "success");
+                showNotification('Organization created successfully!', 'success');
             }
             setIsModalOpen(false);
             fetchOrganizations();
         } catch (e: any) {
-            console.error("Failed to save organization", e);
-            const errorMsg = e.response?.data?.message || e.message || "Unknown error";
-            showNotification(`Failed to save organization: ${errorMsg}`, 'error');
+            console.error('Failed to save organization', e);
+            showNotification('Failed to save organization: ' + (e.response?.data?.message || e.message || 'Unknown error'), 'error');
         }
     };
 
@@ -123,20 +132,69 @@ const OrganizationsPage: React.FC = () => {
             </div>
 
             <div className="bg-white dark:bg-white/5 rounded-xl border border-slate-200 dark:border-border-muted overflow-hidden transition-colors shadow-sm">
+                {/* Filter / Search Bar */}
+                <div className="p-4 border-b border-slate-200 dark:border-border-muted flex flex-wrap gap-3 items-center bg-slate-50 dark:bg-zinc-900/30">
+                    {/* Search */}
+                    <div className="relative flex-1 min-w-[180px] max-w-sm">
+                        <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm">search</span>
+                        <input
+                            value={searchTerm}
+                            onChange={(e) => setSearchTerm(e.target.value)}
+                            className="w-full bg-white dark:bg-zinc-900 border border-slate-200 dark:border-border-muted rounded-lg pl-9 pr-4 py-2 text-xs text-slate-900 dark:text-white outline-none focus:ring-1 focus:ring-primary transition-all shadow-sm"
+                            placeholder="Search by name or description..."
+                        />
+                    </div>
+
+                    {/* Sort By */}
+                    <select
+                        value={sortBy}
+                        onChange={(e) => setSortBy(e.target.value as any)}
+                        className="bg-white dark:bg-zinc-900 border border-slate-200 dark:border-border-muted rounded-lg px-3 py-2 text-xs text-slate-900 dark:text-white outline-none focus:ring-1 focus:ring-primary transition-all"
+                    >
+                        <option value="orgId">Default</option>
+                        <option value="name">Name</option>
+                        <option value="createdAt">Created At</option>
+                    </select>
+
+                    {/* Sort Order */}
+                    <button
+                        onClick={() => setSortOrder(o => o === 'asc' ? 'desc' : 'asc')}
+                        className="bg-white dark:bg-zinc-900 border border-slate-200 dark:border-border-muted rounded-lg px-3 py-2 text-xs text-slate-900 dark:text-white transition-all flex items-center gap-1"
+                        title="Toggle sort order"
+                    >
+                        <span className="material-symbols-outlined text-sm">
+                            {sortOrder === 'asc' ? 'arrow_upward' : 'arrow_downward'}
+                        </span>
+                        {sortOrder.toUpperCase()}
+                    </button>
+
+                    {/* Refresh */}
+                    <button
+                        onClick={() => fetchOrganizations()}
+                        className="px-3 py-2 bg-white dark:bg-zinc-800 hover:bg-slate-50 dark:hover:bg-zinc-700 border border-slate-200 dark:border-border-muted rounded-lg text-xs font-bold text-slate-700 dark:text-white flex items-center gap-1 transition-all shadow-sm"
+                    >
+                        <span className="material-symbols-outlined text-sm">refresh</span>
+                    </button>
+                </div>
+
                 {isLoading ? (
-                    <div className="p-8 text-center text-slate-500">Loading organizations...</div>
+                    <div className="p-8 text-center text-slate-500">
+                        <div className="flex flex-col items-center gap-3">
+                            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+                            <p>Loading organizations...</p>
+                        </div>
+                    </div>
                 ) : error ? (
                     <div className="p-8 text-center text-red-500 bg-red-500/10 rounded-lg m-4 border border-red-500/20">
                         <p className="font-bold">Error loading data</p>
                         <p className="text-sm opacity-80 mt-1">{error}</p>
-                        <button onClick={fetchOrganizations} className="mt-4 px-4 py-2 bg-red-500 text-white text-xs font-bold rounded hover:bg-red-600 transition-colors">Retry</button>
+                        <button onClick={() => fetchOrganizations()} className="mt-4 px-4 py-2 bg-red-500 text-white text-xs font-bold rounded hover:bg-red-600 transition-colors">Retry</button>
                     </div>
                 ) : (
                     <div className="overflow-x-auto">
                         <table className="w-full text-left">
                             <thead className="bg-slate-50 dark:bg-zinc-900/50 border-b border-slate-200 dark:border-border-muted text-slate-500 dark:text-slate-400">
                                 <tr>
-                                    <th className="px-6 py-4 text-[11px] font-extrabold uppercase tracking-widest text-inherit">ID</th>
                                     <th className="px-6 py-4 text-[11px] font-extrabold uppercase tracking-widest text-inherit">Name</th>
                                     <th className="px-6 py-4 text-[11px] font-extrabold uppercase tracking-widest text-inherit">Description</th>
                                     <th className="px-6 py-4 text-[11px] font-extrabold uppercase tracking-widest text-inherit text-center">Total Sites</th>
@@ -145,9 +203,14 @@ const OrganizationsPage: React.FC = () => {
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-slate-100 dark:divide-border-muted text-slate-500 dark:text-slate-400">
-                                {organizations.map((org) => (
+                                {organizations.length === 0 ? (
+                                    <tr>
+                                        <td colSpan={5} className="px-6 py-8 text-center text-slate-500 text-sm">
+                                            No organizations found.
+                                        </td>
+                                    </tr>
+                                ) : organizations.map((org) => (
                                     <tr key={org.orgId} className="hover:bg-slate-50 dark:hover:bg-white/5 transition-colors">
-                                        <td className="px-6 py-4 text-xs font-bold text-slate-900 dark:text-white uppercase tracking-tight">{org.orgId}</td>
                                         <td className="px-6 py-4 text-sm font-bold text-slate-900 dark:text-white">{org.name}</td>
                                         <td className="px-6 py-4 text-xs max-w-xs truncate">{org.description}</td>
                                         <td className="px-6 py-4 text-xs font-bold text-center text-slate-900 dark:text-white">{org.siteCount}</td>
@@ -176,13 +239,6 @@ const OrganizationsPage: React.FC = () => {
                                         )}
                                     </tr>
                                 ))}
-                                {organizations.length === 0 && (
-                                    <tr>
-                                        <td colSpan={6} className="px-6 py-8 text-center text-slate-500 text-sm">
-                                            No organizations found.
-                                        </td>
-                                    </tr>
-                                )}
                             </tbody>
                         </table>
                     </div>
@@ -190,7 +246,7 @@ const OrganizationsPage: React.FC = () => {
             </div>
 
             {/* Edit/Create Modal */}
-            <Modal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} title={editingId ? "Edit Organization" : "Add Organization"}>
+            <Modal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} title={editingId ? 'Edit Organization' : 'Add Organization'}>
                 <form className="p-6 space-y-6">
                     <div className="space-y-2">
                         <label className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest">Organization Name</label>
@@ -225,7 +281,7 @@ const OrganizationsPage: React.FC = () => {
                             className="flex-1 px-6 py-2.5 bg-slate-900 dark:bg-white text-white dark:text-black rounded-lg text-xs font-bold uppercase transition-all shadow-lg shadow-slate-900/10 dark:shadow-none hover:bg-black dark:hover:bg-slate-200"
                             type="button"
                         >
-                            {editingId ? "Save Changes" : "Create"}
+                            {editingId ? 'Save Changes' : 'Create'}
                         </button>
                     </div>
                 </form>

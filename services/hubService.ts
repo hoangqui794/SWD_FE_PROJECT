@@ -51,16 +51,33 @@ export interface HubHistoricalData {
     sensors: HubSensorReadings[];
 }
 
+export interface HubQueryParams {
+    search?: string;
+    isOnline?: boolean;
+    pageNumber?: number;
+    pageSize?: number;
+    sortBy?: 'name' | 'macAddress' | 'isOnline' | 'lastHandshake' | 'hubId';
+    sortOrder?: 'asc' | 'desc';
+}
+
 interface ApiResponse<T> {
     message: string;
     count?: number;
+    totalCount?: number;
     data: T;
 }
 
 export const hubService = {
-    getAll: async (siteId?: string): Promise<Hub[]> => {
-        const params = siteId ? { site_id: siteId } : {};
-        const response = await apiClient.get<ApiResponse<Hub[]>>('/api/hubs', { params });
+    getAll: async (params?: HubQueryParams): Promise<Hub[]> => {
+        const query: Record<string, any> = {};
+        if (params?.search) query.search = params.search;
+        if (params?.isOnline !== undefined) query.isOnline = params.isOnline;
+        if (params?.pageNumber !== undefined) query.pageNumber = params.pageNumber;
+        if (params?.pageSize !== undefined) query.pageSize = params.pageSize;
+        if (params?.sortBy) query.sortBy = params.sortBy;
+        if (params?.sortOrder) query.sortOrder = params.sortOrder;
+
+        const response = await apiClient.get<ApiResponse<Hub[]>>('/api/hubs', { params: query });
         return response.data.data;
     },
 
