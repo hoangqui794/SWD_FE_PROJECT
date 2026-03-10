@@ -181,11 +181,15 @@ const DashboardPage: React.FC = () => {
         // Cập nhật giá trị cho từng loại cảm biến dựa trên payload phẳng
         setEnvSensors(prev => prev.map(sensor => {
           let newValue = null;
-          const type = sensor.typeName?.toLowerCase();
+          const type = sensor.typeName?.toLowerCase() || '';
 
-          if (type === 'temperature') newValue = payload.temperature;
-          else if (type === 'humidity') newValue = payload.humidity;
-          else if (type === 'pressure') newValue = payload.pressure;
+          const isTemp = type.includes('temperature') || type.includes('Nhiệt độ');
+          const isHumid = type.includes('humidity') || type.includes('Độ ẩm');
+          const isPress = type.includes('pressure') || type.includes('Áp suất');
+
+          if (isTemp) newValue = payload.temperature;
+          else if (isHumid) newValue = payload.humidity;
+          else if (isPress) newValue = payload.pressure;
 
           if (newValue !== null && newValue !== undefined) {
             return {
@@ -376,21 +380,27 @@ const DashboardPage: React.FC = () => {
   }, [selectedSensorHistory]);
 
   const getSensorIcon = (typeName: string) => {
-    switch (typeName?.toLowerCase()) {
-      case 'temperature': return 'thermostat';
-      case 'humidity': return 'humidity_percentage';
-      case 'pressure': return 'speed';
-      default: return 'sensors';
-    }
+    const type = typeName?.toLowerCase() || '';
+    if (type.includes('temperature') || type.includes('nhiệt độ')) return 'thermostat';
+    if (type.includes('humidity') || type.includes('độ ẩm')) return 'humidity_percentage';
+    if (type.includes('pressure') || type.includes('áp suất')) return 'speed';
+    return 'sensors';
   };
 
   const getSensorColor = (typeName: string) => {
-    switch (typeName?.toLowerCase()) {
-      case 'temperature': return { text: 'text-orange-400', bg: 'bg-orange-500/10', border: 'border-orange-500/20', gradient: 'from-orange-500/20 to-transparent' };
-      case 'humidity': return { text: 'text-blue-400', bg: 'bg-blue-500/10', border: 'border-blue-500/20', gradient: 'from-blue-500/20 to-transparent' };
-      case 'pressure': return { text: 'text-purple-400', bg: 'bg-purple-500/10', border: 'border-purple-500/20', gradient: 'from-purple-500/20 to-transparent' };
-      default: return { text: 'text-slate-400', bg: 'bg-slate-500/10', border: 'border-slate-500/20', gradient: 'from-slate-500/20 to-transparent' };
+    const type = typeName?.toLowerCase() || '';
+
+    if (type.includes('temperature') || type.includes('nhiệt độ')) {
+      return { text: 'text-orange-400', bg: 'bg-orange-500/10', border: 'border-orange-500/20', gradient: 'from-orange-500/20 to-transparent' };
     }
+    if (type.includes('humidity') || type.includes('độ ẩm')) {
+      return { text: 'text-blue-400', bg: 'bg-blue-500/10', border: 'border-blue-500/20', gradient: 'from-blue-500/20 to-transparent' };
+    }
+    if (type.includes('pressure') || type.includes('áp suất')) {
+      return { text: 'text-purple-400', bg: 'bg-purple-500/10', border: 'border-purple-500/20', gradient: 'from-purple-500/20 to-transparent' };
+    }
+
+    return { text: 'text-slate-400', bg: 'bg-slate-500/10', border: 'border-slate-500/20', gradient: 'from-slate-500/20 to-transparent' };
   };
 
   const formatLastUpdate = (lastUpdate: string) => {
