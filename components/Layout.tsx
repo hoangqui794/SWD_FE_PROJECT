@@ -3,6 +3,7 @@ import React, { useState } from 'react';
 import Sidebar from './Sidebar';
 import Header from './Header';
 import Footer from './Footer';
+import FloatingAIWidget from './AI/FloatingAIWidget';
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -38,6 +39,9 @@ const Layout: React.FC<LayoutProps> = ({ children, title, breadcrumb }) => {
           <Footer />
         </main>
       </div>
+
+      {/* Global AI Chat Widget */}
+      <FloatingAIWidget />
     </div>
   );
 };
