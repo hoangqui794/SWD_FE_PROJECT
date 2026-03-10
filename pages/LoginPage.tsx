@@ -10,7 +10,7 @@ const LoginPage: React.FC = () => {
   const navigate = useNavigate();
   const { login } = useAuth();
 
-  const [email, setEmail] = useState('manager@iot.com');
+  const [email, setEmail] = useState('manager@example.com');
   const [password, setPassword] = useState('111');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
