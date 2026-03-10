@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { Link } from 'react-router-dom';
 import Layout from '../components/Layout';
 import Modal from '../components/Modal';
 import { useAuth } from '../context/AuthContext';
@@ -260,6 +261,7 @@ const SitesPage: React.FC = () => {
                 <tr>
                   <th className="px-6 py-4 text-[11px] font-extrabold uppercase tracking-widest text-inherit">Organization</th>
                   <th className="px-6 py-4 text-[11px] font-extrabold uppercase tracking-widest text-inherit">Site Name</th>
+                  <th className="px-6 py-4 text-[11px] font-extrabold uppercase tracking-widest text-inherit">Status</th>
                   <th className="px-6 py-4 text-[11px] font-extrabold uppercase tracking-widest text-inherit">Address</th>
                   <th className="px-6 py-4 text-[11px] font-extrabold uppercase tracking-widest text-inherit text-center">Hubs</th>
                   {canEdit && <th className="px-6 py-4 text-[11px] font-extrabold uppercase tracking-widest text-inherit text-right">Actions</th>}
@@ -268,7 +270,7 @@ const SitesPage: React.FC = () => {
               <tbody className="divide-y divide-slate-100 dark:divide-border-muted">
                 {sites.length === 0 ? (
                   <tr>
-                    <td colSpan={5} className="px-6 py-8 text-center text-slate-500 text-sm">
+                    <td colSpan={6} className="px-6 py-8 text-center text-slate-500 text-sm">
                       No sites found matching your search.
                     </td>
                   </tr>
@@ -276,7 +278,12 @@ const SitesPage: React.FC = () => {
                   <tr key={site.siteId} className="hover:bg-slate-50 dark:hover:bg-white/5 transition-colors">
                     <td className="px-6 py-4 text-xs whitespace-nowrap text-slate-700 dark:text-slate-300">{site.orgName}</td>
                     <td className="px-6 py-4 text-sm font-medium min-w-[200px] text-slate-900 dark:text-white">
-                      {site.name}
+                      <Link
+                        to={`/sites/${site.siteId}/hubs`}
+                        className="hover:text-primary hover:underline transition-all underline-offset-4"
+                      >
+                        {site.name}
+                      </Link>
                       {site.geoLocation && (
                         <div className="text-[9px] text-slate-500 font-mono mt-0.5 flex items-center gap-1">
                           <span className="material-symbols-outlined text-[10px]">location_on</span>
@@ -284,8 +291,23 @@ const SitesPage: React.FC = () => {
                         </div>
                       )}
                     </td>
+                    <td className="px-6 py-4">
+                      <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold border bg-emerald-50 text-emerald-600 border-emerald-100 dark:bg-emerald-500/10 dark:text-emerald-400 dark:border-emerald-500/20 shadow-sm transition-all">
+                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                        ACTIVE
+                      </span>
+                    </td>
                     <td className="px-6 py-4 text-xs text-slate-500 dark:text-slate-400">{site.address}</td>
-                    <td className="px-6 py-4 text-center font-bold text-slate-900 dark:text-white">{site.hubCount}</td>
+                    <td className="px-6 py-4 text-center">
+                      <Link
+                        to={`/sites/${site.siteId}/hubs`}
+                        className="inline-flex items-center gap-1 px-3 py-1 bg-primary/10 text-primary hover:bg-primary/20 rounded-full font-bold transition-all"
+                        title="View Site Hubs"
+                      >
+                        {site.hubCount}
+                        <span className="material-symbols-outlined text-[14px]">chevron_right</span>
+                      </Link>
+                    </td>
                     {canEdit && (
                       <td className="px-6 py-4 text-right flex justify-end gap-2">
                         <button

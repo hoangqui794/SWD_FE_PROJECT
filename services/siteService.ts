@@ -39,6 +39,11 @@ export const siteService = {
         return response.data.data;
     },
 
+    getById: async (id: number): Promise<Site> => {
+        const response = await apiClient.get<{ message: string; data: Site }>(`/api/site/${id}`);
+        return response.data.data;
+    },
+
     create: async (data: Omit<Site, 'siteId' | 'orgName' | 'hubCount'>): Promise<void> => {
         await apiClient.post('/api/site', data);
     },

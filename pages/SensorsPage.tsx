@@ -1,5 +1,5 @@
-
 import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { useParams, Link } from 'react-router-dom';
 import Layout from '../components/Layout';
 import Modal from '../components/Modal';
 import { useAuth } from '../context/AuthContext';
@@ -12,6 +12,7 @@ import { signalRService } from '../services/signalrService';
 
 
 const SensorsPage: React.FC = () => {
+  const { hubId } = useParams<{ hubId: string }>();
   const { hasRole } = useAuth();
   const { showNotification } = useNotification();
   const canManage = hasRole(['ADMIN', 'MANAGER']);
@@ -20,6 +21,8 @@ const SensorsPage: React.FC = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [sensors, setSensors] = useState<Sensor[]>([]);
   const [hubs, setHubs] = useState<Hub[]>([]);
+  const [selectedHubName, setSelectedHubName] = useState<string | null>(null);
+  const [parentSiteId, setParentSiteId] = useState<number | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [sites, setSites] = useState<Site[]>([]);
@@ -27,7 +30,7 @@ const SensorsPage: React.FC = () => {
   // Server-side filters
   const [searchTerm, setSearchTerm] = useState('');
   const [filterTypeId, setFilterTypeId] = useState<number | undefined>();
-  const [filterHubId, setFilterHubId] = useState<number | undefined>();
+  const [filterHubId, setFilterHubId] = useState<number | undefined>(hubId ? Number(hubId) : undefined);
   const [filterStatus, setFilterStatus] = useState('');
   const [sortBy, setSortBy] = useState<'sensorId' | 'name' | 'status' | 'hubId' | 'type'>('sensorId');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
@@ -39,7 +42,7 @@ const SensorsPage: React.FC = () => {
   const [formData, setFormData] = useState<CreateSensorRequest>({
     name: '',
     typeId: 1,
-    hubId: 0
+    hubId: hubId ? Number(hubId) : 0
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [editingSensorId, setEditingSensorId] = useState<number | null>(null);
@@ -55,7 +58,7 @@ const SensorsPage: React.FC = () => {
     try {
       const data = await sensorService.getAll({
         search: searchTerm || undefined,
-        hub_id: filterHubId,
+        hub_id: hubId ? Number(hubId) : filterHubId,
         type: filterTypeId,
         status: filterStatus || undefined,
         sortBy,
@@ -68,7 +71,7 @@ const SensorsPage: React.FC = () => {
     } finally {
       if (showLoading) setIsLoading(false);
     }
-  }, [searchTerm, filterHubId, filterTypeId, filterStatus, sortBy, sortOrder]);
+  }, [searchTerm, filterHubId, filterTypeId, filterStatus, sortBy, sortOrder, hubId]);
 
   // Fetch hubs and setup SignalR on mount
   useEffect(() => {
@@ -127,6 +130,13 @@ const SensorsPage: React.FC = () => {
     try {
       const data = await hubService.getAll();
       setHubs(data);
+      if (hubId) {
+        const currentHub = data.find(h => h.hubId === Number(hubId));
+        if (currentHub) {
+          setSelectedHubName(currentHub.name);
+          setParentSiteId(currentHub.siteId);
+        }
+      }
     } catch (error) {
       console.error("Failed to fetch hubs", error);
     }
@@ -216,12 +226,12 @@ const SensorsPage: React.FC = () => {
     setIsModalOpen(true);
   };
 
-  const getStatusColor = (status: string) => {
+  const getStatusBadgeStyles = (status: string) => {
     switch (status.toLowerCase()) {
-      case 'online': return 'text-emerald-500';
-      case 'offline': return 'text-red-500';
-      case 'warning': return 'text-yellow-500';
-      default: return 'text-slate-500';
+      case 'online': return 'bg-emerald-50 text-emerald-600 border-emerald-100 dark:bg-emerald-500/10 dark:text-emerald-400 dark:border-emerald-500/20';
+      case 'offline': return 'bg-red-50 text-red-600 border-red-100 dark:bg-red-500/10 dark:text-red-400 dark:border-red-500/20';
+      case 'warning': return 'bg-amber-50 text-amber-600 border-amber-100 dark:bg-amber-500/10 dark:text-amber-400 dark:border-amber-500/20';
+      default: return 'bg-slate-50 text-slate-600 border-slate-100 dark:bg-slate-500/10 dark:text-slate-400 dark:border-slate-500/20';
     }
   };
 
@@ -229,7 +239,7 @@ const SensorsPage: React.FC = () => {
     switch (status.toLowerCase()) {
       case 'online': return 'bg-emerald-500 animate-pulse';
       case 'offline': return 'bg-red-500';
-      case 'warning': return 'bg-yellow-500 animate-pulse';
+      case 'warning': return 'bg-amber-500 animate-pulse';
       default: return 'bg-slate-400';
     }
   };
@@ -238,10 +248,20 @@ const SensorsPage: React.FC = () => {
   const hubsForForm = hubs;
 
   return (
-    <Layout title="Sensors Management" breadcrumb="Environment Overview">
+    <Layout title={selectedHubName ? `Sensors: ${selectedHubName}` : "Sensors Management"} breadcrumb={selectedHubName ? `Hubs > ${selectedHubName}` : "Environment Overview"}>
       <div className="flex justify-between items-end mb-8">
-        <div>
-          <h3 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-white">IoT Sensors Management</h3>
+        <div className="flex flex-col gap-2">
+          {hubId && (
+            <Link
+              to={parentSiteId ? `/sites/${parentSiteId}/hubs` : "/hubs"}
+              className="flex items-center gap-1 text-xs font-bold text-primary hover:underline mb-2"
+            >
+              <span className="material-symbols-outlined text-sm">arrow_back</span> Back to Hubs
+            </Link>
+          )}
+          <h3 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-white">
+            {selectedHubName ? `Sensors in ${selectedHubName}` : "IoT Sensors Management"}
+          </h3>
           <p className="text-slate-500 text-sm mt-1">Inventory and real-time status of environmental sensors.</p>
         </div>
         {canManage && (
@@ -412,9 +432,9 @@ const SensorsPage: React.FC = () => {
                     <td className="px-6 py-4 text-xs text-slate-500 dark:text-slate-400">{sensor.typeName}</td>
                     <td className="px-6 py-4 text-xs text-slate-500 dark:text-slate-400">{sensor.hubName}</td>
                     <td className="px-6 py-4">
-                      <span className={`inline-flex items-center gap-1 text-[10px] font-bold uppercase ${getStatusColor(sensor.status)}`}>
+                      <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold border transition-all ${getStatusBadgeStyles(sensor.status)}`}>
                         <span className={`w-1.5 h-1.5 rounded-full ${getStatusDot(sensor.status)}`} />
-                        {sensor.status}
+                        {sensor.status.toUpperCase()}
                       </span>
                     </td>
                     <td className="px-6 py-4 text-xs text-slate-400 dark:text-slate-500">

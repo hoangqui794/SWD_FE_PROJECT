@@ -70,7 +70,7 @@ const FloatingAIWidget: React.FC = () => {
         <div className="fixed bottom-6 right-6 z-[9999] flex flex-col items-end">
             {/* Chat Window */}
             {isOpen && (
-                <div className="mb-4 w-[380px] md:w-[420px] h-[550px] bg-white dark:bg-zinc-950 border border-slate-200 dark:border-white/10 rounded-3xl shadow-2xl flex flex-col overflow-hidden animate-in slide-in-from-bottom-5 fade-in duration-300 backdrop-blur-xl">
+                <div className="mb-4 w-[500px] md:w-[600px] h-[800px] max-h-[85vh] bg-white dark:bg-zinc-950 border border-slate-200 dark:border-white/10 rounded-3xl shadow-2xl flex flex-col overflow-hidden animate-in slide-in-from-bottom-5 fade-in duration-300 backdrop-blur-xl">
                     {/* Header */}
                     <div className="p-4 border-b border-slate-100 dark:border-white/5 bg-primary/5 flex items-center justify-between">
                         <div className="flex items-center gap-2">
@@ -78,7 +78,7 @@ const FloatingAIWidget: React.FC = () => {
                                 <span className="material-symbols-outlined text-white text-sm">smart_toy</span>
                             </div>
                             <div>
-                                <h3 className="text-xs font-bold dark:text-white">Gemini Assistant</h3>
+                                <h3 className="text-xs font-bold dark:text-white">AI Assistant</h3>
                                 <div className="flex items-center gap-1">
                                     <span className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse"></span>
                                     <span className="text-[9px] text-emerald-500 font-bold uppercase">Online</span>

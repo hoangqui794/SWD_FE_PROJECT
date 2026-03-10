@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { useParams, Link } from 'react-router-dom';
 import Layout from '../components/Layout';
 import Modal from '../components/Modal';
 import { useAuth } from '../context/AuthContext';
@@ -9,6 +10,7 @@ import { siteService, Site } from '../services/siteService';
 import { signalRService } from '../services/signalrService';
 
 const HubsPage: React.FC = () => {
+  const { siteId } = useParams<{ siteId: string }>();
   const { hasRole } = useAuth();
   const { showNotification } = useNotification();
   const canManage = hasRole(['ADMIN', 'MANAGER']);
@@ -16,6 +18,7 @@ const HubsPage: React.FC = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [hubs, setHubs] = useState<Hub[]>([]);
   const [sites, setSites] = useState<Site[]>([]);
+  const [selectedSiteName, setSelectedSiteName] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
   // Filter / Search state (server-side)
@@ -29,7 +32,7 @@ const HubsPage: React.FC = () => {
 
   // Form State
   const [formData, setFormData] = useState({
-    siteId: 0,
+    siteId: siteId ? Number(siteId) : 0,
     name: "",
     macAddress: ""
   });
@@ -43,6 +46,8 @@ const HubsPage: React.FC = () => {
       const params: any = { sortBy, sortOrder };
       if (searchTerm) params.search = searchTerm;
       if (filterOnline !== '') params.isOnline = filterOnline === 'true';
+      if (siteId) params.siteId = Number(siteId);
+
       const data = await hubService.getAll(params);
       setHubs(data);
     } catch (error) {
@@ -50,7 +55,7 @@ const HubsPage: React.FC = () => {
     } finally {
       if (showLoading) setIsLoading(false);
     }
-  }, [searchTerm, filterOnline, sortBy, sortOrder]);
+  }, [searchTerm, filterOnline, sortBy, sortOrder, siteId]);
 
   useEffect(() => {
     fetchSites();
@@ -91,10 +96,15 @@ const HubsPage: React.FC = () => {
 
   const fetchSites = async () => {
     try {
-      const data = await siteService.getAll();
-      setSites(data);
+      if (siteId) {
+        const siteData = await siteService.getById(Number(siteId));
+        setSelectedSiteName(siteData.name);
+      }
+      // Still fetch all sites for the "Site" dropdown in Create/Edit Modal
+      const allSites = await siteService.getAll();
+      setSites(allSites);
     } catch (error) {
-      console.error("Failed to fetch sites", error);
+      console.error("Failed to fetch site details", error);
     }
   };
 
@@ -168,10 +178,17 @@ const HubsPage: React.FC = () => {
   };
 
   return (
-    <Layout title="Hubs" breadcrumb="Administration">
+    <Layout title={selectedSiteName ? `Hubs: ${selectedSiteName}` : "Hubs Management"} breadcrumb={selectedSiteName ? `Sites > ${selectedSiteName}` : "Administration"}>
       <div className="flex justify-between items-end mb-8">
-        <div>
-          <h3 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-white">Hubs Management</h3>
+        <div className="flex flex-col gap-2">
+          {siteId && (
+            <Link to="/sites" className="flex items-center gap-1 text-xs font-bold text-primary hover:underline mb-2">
+              <span className="material-symbols-outlined text-sm">arrow_back</span> Back to Sites
+            </Link>
+          )}
+          <h3 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-white">
+            {selectedSiteName ? `Hubs in ${selectedSiteName}` : "Hubs Management"}
+          </h3>
           <p className="text-slate-500 text-sm mt-1">Configure and monitor gateway devices across all store locations.</p>
         </div>
         {canManage && (
@@ -236,6 +253,7 @@ const HubsPage: React.FC = () => {
                 <th className="px-6 py-4 text-[11px] font-extrabold uppercase tracking-widest text-inherit">Hub Name</th>
                 <th className="px-6 py-4 text-[11px] font-extrabold uppercase tracking-widest text-inherit">Site Name</th>
                 <th className="px-6 py-4 text-[11px] font-extrabold uppercase tracking-widest text-inherit">MAC Address</th>
+                <th className="px-6 py-4 text-[11px] font-extrabold uppercase tracking-widest text-inherit">Sensors</th>
                 <th className="px-6 py-4 text-[11px] font-extrabold uppercase tracking-widest text-inherit">Status</th>
                 <th className="px-6 py-4 text-[11px] font-extrabold uppercase tracking-widest text-inherit">Last Handshake</th>
                 {canManage && <th className="px-6 py-4 text-[11px] font-extrabold uppercase tracking-widest text-inherit text-right">Actions</th>}
@@ -243,16 +261,29 @@ const HubsPage: React.FC = () => {
             </thead>
             <tbody className="divide-y divide-slate-100 dark:divide-border-muted">
               {isLoading ? (
-                <tr><td colSpan={6} className="px-6 py-8 text-center text-slate-500">Loading hubs...</td></tr>
+                <tr><td colSpan={7} className="px-6 py-8 text-center text-slate-500">Loading hubs...</td></tr>
               ) : hubs.length === 0 ? (
-                <tr><td colSpan={6} className="px-6 py-8 text-center text-slate-500 text-sm">No hubs found.</td></tr>
+                <tr><td colSpan={7} className="px-6 py-8 text-center text-slate-500 text-sm">No hubs found.</td></tr>
               ) : hubs.map((hub) => (
                 <tr key={hub.hubId} className="hover:bg-slate-50 dark:hover:bg-white/5 transition-colors">
                   <td className="px-6 py-4 text-sm font-bold text-slate-900 dark:text-white">{hub.name}</td>
                   <td className="px-6 py-4 text-xs text-slate-500 dark:text-slate-400">{hub.siteName}</td>
                   <td className="px-6 py-4 text-xs font-mono text-slate-500 dark:text-slate-400">{hub.macAddress}</td>
                   <td className="px-6 py-4">
-                    <span className={`inline-flex items-center gap-1 text-[10px] font-bold uppercase ${hub.isOnline ? 'text-emerald-500' : 'text-red-500'}`}>
+                    <Link
+                      to={`/hubs/${hub.hubId}/sensors`}
+                      className="inline-flex items-center gap-1 px-3 py-1 bg-primary/10 text-primary hover:bg-primary/20 rounded-full font-bold transition-all text-xs"
+                      title="View Hub Sensors"
+                    >
+                      View Sensors
+                      <span className="material-symbols-outlined text-[14px]">chevron_right</span>
+                    </Link>
+                  </td>
+                  <td className="px-6 py-4">
+                    <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold border transition-all ${hub.isOnline
+                      ? 'bg-emerald-50 text-emerald-600 border-emerald-100 dark:bg-emerald-500/10 dark:text-emerald-400 dark:border-emerald-500/20'
+                      : 'bg-red-50 text-red-600 border-red-100 dark:bg-red-500/10 dark:text-red-400 dark:border-red-500/20'
+                      }`}>
                       <span className={`w-1.5 h-1.5 rounded-full ${hub.isOnline ? 'bg-emerald-500 animate-pulse' : 'bg-red-500'}`} />
                       {hub.isOnline ? 'ONLINE' : 'OFFLINE'}
                     </span>

@@ -10,49 +10,58 @@ import AlertsPage from './pages/AlertsPage';
 import UsersPage from './pages/UsersPage';
 import OrganizationsPage from './pages/OrganizationsPage';
 import ProfilePage from './pages/ProfilePage';
-import AiAssistantPage from './pages/AiAssistantPage';
-import { AuthProvider } from './context/AuthContext';
+import { AuthProvider, useAuth } from './context/AuthContext';
 import { NotificationProvider } from './context/NotificationContext';
 import { ThemeProvider } from './context/ThemeContext';
 import RealtimeNotificationListener from './components/RealtimeNotificationListener';
 import ProtectedRoute from './components/ProtectedRoute';
+
+const AppContent: React.FC = () => {
+  const { isAuthenticated } = useAuth();
+
+  return (
+    <>
+      <RealtimeNotificationListener />
+      <HashRouter>
+        <Routes>
+          {/* Public Routes */}
+          <Route path="/" element={<LoginPage />} />
+
+          {/* Protected Routes - Accessible by all authenticated users */}
+          <Route element={<ProtectedRoute />}>
+            <Route path="/dashboard" element={<DashboardPage />} />
+            <Route path="/profile" element={<ProfilePage />} />
+          </Route>
+
+          {/* Role Protected Routes */}
+          <Route element={<ProtectedRoute allowedRoles={['ADMIN', 'MANAGER', 'STAFF']} />}>
+            <Route path="/sites" element={<SitesPage />} />
+            <Route path="/sites/:siteId/hubs" element={<HubsPage />} />
+            <Route path="/hubs/:hubId/sensors" element={<SensorsPage />} />
+            <Route path="/hubs" element={<HubsPage />} />
+            <Route path="/sensors" element={<SensorsPage />} />
+            <Route path="/alerts" element={<AlertsPage />} />
+          </Route>
+
+          <Route element={<ProtectedRoute allowedRoles={['ADMIN']} />}>
+            <Route path="/users" element={<UsersPage />} />
+            <Route path="/organizations" element={<OrganizationsPage />} />
+          </Route>
+
+          {/* Fallback */}
+          <Route path="*" element={<Navigate to="/dashboard" replace />} />
+        </Routes>
+      </HashRouter>
+    </>
+  );
+};
 
 const App: React.FC = () => {
   return (
     <ThemeProvider>
       <AuthProvider>
         <NotificationProvider>
-          <RealtimeNotificationListener />
-          <HashRouter>
-            <Routes>
-              {/* Public Routes */}
-              <Route path="/" element={<LoginPage />} />
-
-
-              {/* Protected Routes - Accessible by all authenticated users */}
-              <Route element={<ProtectedRoute />}>
-                <Route path="/dashboard" element={<DashboardPage />} />
-                <Route path="/profile" element={<ProfilePage />} />
-                <Route path="/ai-assistant" element={<AiAssistantPage />} />
-              </Route>
-
-              {/* Role Protected Routes */}
-              <Route element={<ProtectedRoute allowedRoles={['ADMIN', 'MANAGER', 'STAFF']} />}>
-                <Route path="/sites" element={<SitesPage />} />
-                <Route path="/hubs" element={<HubsPage />} />
-                <Route path="/sensors" element={<SensorsPage />} />
-                <Route path="/alerts" element={<AlertsPage />} />
-              </Route>
-
-              <Route element={<ProtectedRoute allowedRoles={['ADMIN']} />}>
-                <Route path="/users" element={<UsersPage />} />
-                <Route path="/organizations" element={<OrganizationsPage />} />
-              </Route>
-
-              {/* Fallback */}
-              <Route path="*" element={<Navigate to="/dashboard" replace />} />
-            </Routes>
-          </HashRouter>
+          <AppContent />
         </NotificationProvider>
       </AuthProvider>
     </ThemeProvider>
