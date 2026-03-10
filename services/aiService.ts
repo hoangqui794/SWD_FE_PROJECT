@@ -82,7 +82,7 @@ export const getAgentResponse = async (userInput: string): Promise<A2UIPayload> 
 
   try {
     const model = genAI.getGenerativeModel({
-      model: "gemini-flash-latest",
+      model: "gemini-1.5-flash",
     });
 
     const generationConfig = {
@@ -147,6 +147,9 @@ export const getAgentResponse = async (userInput: string): Promise<A2UIPayload> 
     // Re-throw with user-friendly message
     if (error.message?.includes("429")) {
       throw new Error("Quota exceeded. Please wait a minute.");
+    }
+    if (error.message?.includes("503")) {
+      throw new Error("Hệ thống AI đang quá tải (Google 503). Vui lòng thử lại sau 1 phút.");
     }
     throw error;
   }
