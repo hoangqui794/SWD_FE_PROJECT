@@ -3,7 +3,7 @@ import Layout from '../components/Layout';
 import { Link } from 'react-router-dom';
 import { getDashboardStats, getRecentAlerts, DashboardStats } from '../services/dashboardService';
 import { hubService, Hub, HubHistoricalData, HubSensorReadings } from '../services/hubService';
-import { signalRService } from '../services/signalrService';
+import { listenToHubRealtime, listenToHubAlerts } from '../services/firebase';
 
 const DashboardPage: React.FC = () => {
   const [statsData, setStatsData] = useState<DashboardStats | null>(null);
@@ -117,227 +117,114 @@ const DashboardPage: React.FC = () => {
   useEffect(() => {
     fetchStats();
     fetchHubs();
-    // Khởi động kết nối SignalR ngay khi vào Dashboard
-    signalRService.startConnection();
+    fetchHubs();
   }, []);
 
-  // Lắng nghe SignalR cho các sự kiện Alert và Stats
-  useEffect(() => {
-    const handleRealtimeUpdate = (data: any) => {
-      console.log("Dashboard: Alert notification received", data);
-      const payload = data?.alert;
-      if (payload) {
-        const newAlert = {
-          id: Date.now(),
-          sensorName: payload.sensorName || "Unknown Sensor",
-          location: payload.siteName || "Unknown Location",
-          value: payload.value,
-          metricUnit: '',
-          severity: payload.priority || 'High',
-          status: 'Active',
-          time: data.timestamp || new Date().toISOString()
-        };
-        setRecentAlerts(prev => {
-          const exists = prev.some(a => a.sensorName === newAlert.sensorName && a.time === newAlert.time);
-          if (exists) return prev;
-          return [newAlert, ...prev].slice(0, 10);
-        });
-      }
-      fetchStats(true);
-    };
-
-    signalRService.on("ReceiveAlertNotification", handleRealtimeUpdate);
-    signalRService.on("receivealertnotification", handleRealtimeUpdate);
-
-    return () => {
-      signalRService.off("ReceiveAlertNotification", handleRealtimeUpdate);
-      signalRService.off("receivealertnotification", handleRealtimeUpdate);
-    };
-  }, [fetchStats]);
-
-  // Real-time cập nhật Current Environment (Hub level)
+  // Lắng nghe Cảnh báo (Alerts) Real-time từ Firebase
   useEffect(() => {
     if (!selectedHubId) return;
 
-    const setupHubConnection = async () => {
-      console.log(`SignalR: Attempting to join hub group: ${selectedHubId}`);
-      try {
-        await signalRService.invoke("JoinHubGroup", selectedHubId);
-        console.log(`SignalR: Successfully joined hub group ${selectedHubId}`);
-      } catch (err) {
-        console.error(`SignalR: Failed to join hub group:`, err);
-        setTimeout(setupHubConnection, 3000);
-      }
-    };
+    console.log(`Firebase: Đang lắng nghe Cảnh báo cho Hub ${selectedHubId}`);
 
-    setupHubConnection();
-
-    const handleHubEnvironmentData = (data: any) => {
-      console.log(">>> [REALTIME] ReceiveHubEnvironmentData:", data);
-
-      const payload = data?.data || data;
-
-      if (payload) {
-        // Cập nhật giá trị cho từng loại cảm biến dựa trên payload phẳng
-        setEnvSensors(prev => prev.map(sensor => {
-          let newValue = null;
-          const type = sensor.typeName?.toLowerCase() || '';
-
-          const isTemp = type.includes('temperature') || type.includes('Nhiệt độ');
-          const isHumid = type.includes('humidity') || type.includes('Độ ẩm');
-          const isPress = type.includes('pressure') || type.includes('Áp suất');
-
-          if (isTemp) newValue = payload.temperature;
-          else if (isHumid) newValue = payload.humidity;
-          else if (isPress) newValue = payload.pressure;
-
-          if (newValue !== null && newValue !== undefined) {
-            return {
-              ...sensor,
-              readings: [{
-                value: Number(newValue),
-                recordedAt: payload.updatedAt || payload.recordedAt || new Date().toISOString()
-              }]
-            };
-          }
-          return sensor;
-        }));
-
-        if (payload.hubName) setEnvHubName(payload.hubName);
-      }
-    };
-
-    signalRService.on("ReceiveHubEnvironmentData", handleHubEnvironmentData);
-    signalRService.on("receivehubenvironmentdata", handleHubEnvironmentData);
-
-    return () => {
-      console.log(`SignalR: Leaving hub group: ${selectedHubId}`);
-      signalRService.off("ReceiveHubEnvironmentData", handleHubEnvironmentData);
-      signalRService.off("receivehubenvironmentdata", handleHubEnvironmentData);
-      signalRService.invoke("LeaveHubGroup", selectedHubId).catch(e => console.error("Error leaving group", e));
-    };
-  }, [selectedHubId]);
-
-  // Real-time cập nhật Readings (Sensor level) cho Chart và Logs
-  useEffect(() => {
-    if (!selectedHistorySensorId) return;
-
-    const setupSensorConnection = async () => {
-      console.log(`SignalR: Attempting to join sensor group: ${selectedHistorySensorId}`);
-      try {
-        await signalRService.invoke("JoinSensorGroup", selectedHistorySensorId);
-        console.log(`SignalR: Successfully joined sensor group ${selectedHistorySensorId}`);
-      } catch (err) {
-        console.error(`SignalR: Failed to join sensor group:`, err);
-        setTimeout(setupSensorConnection, 3000);
-      }
-    };
-
-    setupSensorConnection();
-
-    const handleSensorData = (data: any) => {
-      console.log(">>> [REALTIME] ReceiveSensorData:", data);
-
-      const payload = data?.data || data;
-
-      if (payload && (payload.value !== undefined || payload.currentValue !== undefined)) {
-        const val = payload.value !== undefined ? payload.value : payload.currentValue;
-        const recordedAt = payload.recordedAt || payload.lastUpdate || payload.updatedAt || new Date().toISOString();
-
-        const newReading = {
-          value: Number(val),
-          recordedAt: recordedAt
+    const unsubscribe = listenToHubAlerts(selectedHubId, (alert) => {
+      if (alert) {
+        console.log(">>> [FIREBASE ALERT] Nhận cảnh báo mới:", alert);
+        
+        // 1. Tạo bản ghi mới cho danh sách cảnh báo (recentAlerts)
+        const newAlert = {
+          id: Date.now(),
+          sensorName: alert.message || "Cảnh báo hệ thống",
+          location: alert.ruleName || "Hub " + selectedHubId,
+          value: alert.value || "--",
+          metricUnit: '',
+          severity: alert.priority || 'High',
+          status: 'Active',
+          time: alert.time || new Date().toISOString()
         };
 
-        setHistoryData(prev => {
-          if (!prev) return prev;
-          return {
-            ...prev,
-            sensors: prev.sensors.map(s => {
-              if (s.sensorId === selectedHistorySensorId) {
-                const updatedReadings = [newReading, ...s.readings].slice(0, 100);
-                return { ...s, readings: updatedReadings };
-              }
-              return s;
-            })
-          };
+        // 2. Đưa lên đầu danh sách để người dùng thấy ngay (giữ lại 10 cái gần nhất)
+        setRecentAlerts(prev => {
+          // Tránh trùng lặp nếu Firebase push liên tục cùng 1 tin
+          const alreadyExists = prev.some(a => a.sensorName === newAlert.sensorName && a.time === newAlert.time);
+          if (alreadyExists) return prev;
+          return [newAlert, ...prev].slice(0, 10);
         });
 
-        // Đồng thời cập nhật trạng thái Current Environment nếu sensor này đang hiển thị
-        setEnvSensors(prev => prev.map(s => {
-          if (s.sensorId === selectedHistorySensorId) {
-            return {
-              ...s,
-              readings: [newReading]
-            };
-          }
-          return s;
-        }));
+        // 3. Tự động tải lại chỉ số thống kê (Stats) nếu cần
+        fetchStats(true);
       }
-    };
+    });
 
-    signalRService.on("ReceiveSensorData", handleSensorData);
-    signalRService.on("receivesensordata", handleSensorData);
+    return () => unsubscribe();
+  }, [selectedHubId, fetchStats]);
 
-    return () => {
-      console.log(`SignalR: Leaving sensor group: ${selectedHistorySensorId}`);
-      signalRService.off("ReceiveSensorData", handleSensorData);
-      signalRService.off("receivesensordata", handleSensorData);
-      signalRService.invoke("LeaveSensorGroup", selectedHistorySensorId).catch(e => console.error("Error leaving group", e));
-    };
-  }, [selectedHistorySensorId]);
-
-  // Debounce refs for hub/sensor status to handle OFF→ON→OFF bounce
-  const hubStatusTimeouts = useRef<Record<number, ReturnType<typeof setTimeout>>>({});
-  const sensorStatusTimeouts = useRef<Record<number, ReturnType<typeof setTimeout>>>({});
-
-  // Lắng nghe sự kiện trạng thái Online/Offline
+  // Real-time cập nhật từ Firebase (Sử dụng hàm listenToHubRealtime mới)
   useEffect(() => {
-    const handleHubStatus = (data: any) => {
-      console.log(">>> [REALTIME] ReceiveHubStatusChange:", data);
-      const hubId = data?.hubId || data?.HubId;
-      const isOnline = data?.isOnline !== undefined ? data.isOnline : data?.IsOnline;
+    if (!selectedHubId) return;
 
-      // Debounce 2s: nếu status thay đổi liên tục (OFF→ON→OFF), chỉ lấy lần cuối
-      clearTimeout(hubStatusTimeouts.current[hubId]);
-      hubStatusTimeouts.current[hubId] = setTimeout(() => {
-        // Update ALL hubs in the list (not just selected)
-        setHubs(prev => prev.map(h => h.hubId === hubId ? { ...h, isOnline: !!isOnline } : h));
+    console.log(`Firebase: Bắt đầu lắng nghe Hub ${selectedHubId} (Realtime)`);
 
-        // When selected hub goes OFFLINE, cascade to all its sensor cards
-        if (hubId === selectedHubId && !isOnline) {
-          setEnvSensors(prev => prev.map(s => ({ ...s, status: 'Offline' })));
+    const unsubscribe = listenToHubRealtime(selectedHubId, (data) => {
+      // 1. Cập nhật trạng thái Hub cho danh sách
+      setHubs(prev => prev.map(h => h.hubId === selectedHubId ? { ...h, isOnline: data.isOnline } : h));
+
+      // 2. Cập nhật Status cho các thẻ cảm biến (Widgets)
+      setEnvSensors(prev => prev.map(sensor => {
+        const type = sensor.typeName?.toLowerCase() || '';
+        let val = null;
+        if (type.includes('temperature') || type.includes('nhiệt độ')) val = data.temperature;
+        else if (type.includes('humidity') || type.includes('độ ẩm')) val = data.humidity;
+        else if (type.includes('pressure') || type.includes('áp suất')) val = data.pressure;
+        else if (type.includes('lux') || type.includes('ánh sáng')) val = data.lux;
+
+        if (val !== null && val !== undefined) {
+          return { 
+            ...sensor, 
+            readings: [{ value: Number(val), recordedAt: data.lastUpdated || new Date().toISOString() }], 
+            status: data.isOnline ? 'Online' : 'Offline' 
+          };
         }
-      }, 2000);
-    };
+        return sensor;
+      }));
 
-    const handleSensorStatus = (data: any) => {
-      console.log(">>> [REALTIME] ReceiveSensorStatusChange:", data);
-      const sensorId = data?.sensorId || data?.SensorId;
-      const status = data?.status || (data?.isOnline ? 'Online' : 'Offline');
+      // 3. Cập nhật Biểu đồ lịch sử (Gắn thêm điểm mới vào mảng)
+      if (selectedHistorySensorId) {
+        setHistoryData(hPrev => {
+          if (!hPrev) return hPrev;
+          
+          const updatedSensors = hPrev.sensors.map(s => {
+            if (s.sensorId === selectedHistorySensorId) {
+              const type = s.typeName?.toLowerCase() || '';
+              let val = null;
+              if (type.includes('temperature') || type.includes('nhiệt độ')) val = data.temperature;
+              else if (type.includes('humidity') || type.includes('độ ẩm')) val = data.humidity;
+              else if (type.includes('pressure') || type.includes('áp suất')) val = data.pressure;
+              else if (type.includes('lux') || type.includes('ánh sáng')) val = data.lux;
 
-      // Debounce 2s for sensor status too
-      clearTimeout(sensorStatusTimeouts.current[sensorId]);
-      sensorStatusTimeouts.current[sensorId] = setTimeout(() => {
-        setEnvSensors(prev => prev.map(s => s.sensorId === sensorId ? { ...s, status } : s));
-      }, 2000);
-    };
+              if (val !== null && val !== undefined) {
+                const lastReading = s.readings[0];
+                const newTime = new Date().toISOString(); 
+                
+                // Nếu giá trị hoặc thời gian thay đổi, thêm điểm mới
+                const newReading = { value: Number(val), recordedAt: newTime };
+                
+                // Giới hạn 100 điểm để performance tốt
+                return { ...s, readings: [newReading, ...s.readings].slice(0, 100) };
+              }
+            }
+            return s;
+          });
 
-    signalRService.on("ReceiveHubStatusChange", handleHubStatus);
-    signalRService.on("receivehubstatuschange", handleHubStatus);
-    signalRService.on("ReceiveSensorStatusChange", handleSensorStatus);
-    signalRService.on("receivesensorstatuschange", handleSensorStatus);
+          return { ...hPrev, sensors: updatedSensors };
+        });
+      }
+    });
 
     return () => {
-      // Cleanup debounce timers
-      Object.values(hubStatusTimeouts.current).forEach(clearTimeout);
-      Object.values(sensorStatusTimeouts.current).forEach(clearTimeout);
-      signalRService.off("ReceiveHubStatusChange", handleHubStatus);
-      signalRService.off("receivehubstatuschange", handleHubStatus);
-      signalRService.off("ReceiveSensorStatusChange", handleSensorStatus);
-      signalRService.off("receivesensorstatuschange", handleSensorStatus);
+      console.log(`Firebase: Ngừng lắng nghe Hub ${selectedHubId}`);
+      unsubscribe();
     };
-  }, [selectedHubId]);
+  }, [selectedHubId, selectedHistorySensorId]);
 
   // Tự động lấy dữ liệu môi trường và lịch sử khi Hub thay đổi hoặc Ngày thay đổi
   useEffect(() => {
@@ -581,12 +468,16 @@ const DashboardPage: React.FC = () => {
                 onClick={() => setSelectedHistorySensorId(s.sensorId)}
                 className={`w-full p-4 rounded-xl border text-left transition-all ${selectedHistorySensorId === s.sensorId ? 'border-primary bg-primary/5 shadow-sm shadow-primary/10' : 'border-slate-200 dark:border-border-muted bg-white dark:bg-white/5 hover:bg-slate-50 dark:hover:bg-white/10'}`}
               >
-                <div className="flex items-center gap-3">
-                  <span className={`material-symbols-outlined text-sm ${selectedHistorySensorId === s.sensorId ? 'text-primary' : 'text-slate-400 dark:text-slate-500'}`}>{getSensorIcon(s.typeName)}</span>
-                  <div>
-                    <p className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase">{s.typeName}</p>
-                    <p className="text-xs font-medium text-slate-900 dark:text-white truncate max-w-[120px]">{s.name}</p>
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <span className={`material-symbols-outlined text-sm ${selectedHistorySensorId === s.sensorId ? 'text-primary' : 'text-slate-400 dark:text-slate-500'}`}>{getSensorIcon(s.typeName)}</span>
+                    <div>
+                      <p className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase">{s.typeName}</p>
+                      <p className="text-xs font-medium text-slate-900 dark:text-white truncate max-w-[120px]">{s.name}</p>
+                    </div>
                   </div>
+                  {/* Status dot in history list */}
+                  <div className={`w-1.5 h-1.5 rounded-full ${selectedHub?.isOnline ? 'bg-emerald-500 animate-pulse' : 'bg-slate-500'}`}></div>
                 </div>
               </button>
             ))}

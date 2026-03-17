@@ -1,4 +1,4 @@
-const API_KEY = "AIzaSyAFVfB8J_cGYs4X8yvXgkM6YQiiDlKB3wg";
+const API_KEY = ""; // Bị gỡ bỏ để bảo mật. Hãy dùng .env nếu cần.
 
 async function listAllModels() {
     try {

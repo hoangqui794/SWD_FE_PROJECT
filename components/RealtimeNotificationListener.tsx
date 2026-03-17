@@ -1,61 +1,76 @@
-
-import React, { useEffect } from 'react';
-import { signalRService } from '../services/signalrService';
+import React, { useEffect, useRef } from 'react';
 import { useNotification } from '../context/NotificationContext';
 import { useAuth } from '../context/AuthContext';
+import { listenToHubAlerts } from '../services/firebase';
+import { hubService } from '../services/hubService';
 
+/**
+ * Component lắng nghe thông báo Real-time TOÀN CỤC.
+ * Được mount tại App.tsx nên sẽ chạy xuyên suốt vòng đời ứng dụng.
+ */
 const RealtimeNotificationListener: React.FC = () => {
     const { showNotification } = useNotification();
     const { isAuthenticated } = useAuth();
+    const unsubscribes = useRef<(() => void)[]>([]);
 
     useEffect(() => {
         if (!isAuthenticated) return;
 
-        signalRService.startConnection();
+        const setupGlobalListeners = async () => {
+            try {
+                // 1. Lấy danh sách tất cả Hubs mà user có quyền truy cập
+                console.log("[FIREBASE GLOBAL] Đang tải danh sách Hubs cho thông báo toàn cục...");
+                const hubs = await hubService.getAll();
+                
+                // Cleanup bất kỳ listener cũ nào trước khi tạo mới (tránh trùng lặp)
+                unsubscribes.current.forEach(unsub => unsub());
+                unsubscribes.current = [];
 
-        const handleReceiveAlert = (data: any) => {
-            // Log này để debug - Bạn hãy kiểm tra xem có thấy chữ "!!! TOAST TRIGGERED !!!" không
-            console.log("!!! TOAST TRIGGERED !!! Data:", data);
+                // 2. Với mỗi Hub, gắn một listener Firebase vào nốt /Alert
+                hubs.forEach(hub => {
+                    const unsub = listenToHubAlerts(hub.hubId, (alert) => {
+                        if (!alert) return;
 
-            const alertData = data.alert || data; // Hỗ trợ cả bọc trong alert hoặc flat
-            if (!alertData) return;
+                        console.log(`>>> [GLOBAL ALERT] Hub ${hub.hubId}:`, alert);
 
-            // Chuyển hết về chữ thường để so sánh cho chuẩn
-            const priority = String(alertData.priority || '').toLowerCase();
-            const ruleName = alertData.ruleName || alertData.sensorName || "Cảnh báo hệ thống";
-            const message = alertData.message || "Phát hiện chỉ số bất thường";
+                        const priority = String(alert.priority || '').toLowerCase();
+                        const ruleName = alert.ruleName || "Cảnh báo hệ thống";
+                        const message = alert.message || "Phát hiện chỉ số bất thường";
+                        const value = alert.value !== undefined ? ` (Giá trị: ${alert.value})` : "";
 
-            // Map màu sắc dựa trên priority: high, medium, low
-            let type: 'error' | 'warning' | 'info' | 'success' = 'info';
-            const p = priority.toLowerCase();
+                        // Map màu sắc dựa trên mức độ nghiêm trọng
+                        let type: 'error' | 'warning' | 'info' | 'success' = 'info';
+                        if (priority === 'high' || priority === 'urgent') type = 'error';
+                        else if (priority === 'medium') type = 'warning';
+                        else if (priority === 'low') type = 'info';
 
-            if (p === 'high') {
-                type = 'error';
-            } else if (p === 'medium') {
-                type = 'warning';
-            } else if (p === 'low') {
-                type = 'info';
-            }
+                        const finalMessage = `🚨 ${ruleName}: ${message}${value}`;
+                        
+                        // HIỂN THỊ THÔNG BÁO TOÀN CỤC (TOAST)
+                        // Vì component này ở App.tsx nên dù user đang ở trang nào cũng sẽ thấy
+                        showNotification(finalMessage, type);
 
-            const finalMessage = `${ruleName}: ${message}`;
+                        // Phát âm thanh nếu là cảnh báo High
+                        if (type === 'error') {
+                            const audio = new Audio('/alert-sound.mp3');
+                            audio.play().catch(() => {});
+                        }
+                    });
+                    unsubscribes.current.push(unsub);
+                });
 
-            console.log("Calling showNotification with:", { finalMessage, type });
-            showNotification(finalMessage, type);
-
-            // Audio cho cảnh báo High
-            if (type === 'error') {
-                const audio = new Audio('/alert-sound.mp3');
-                audio.play().catch(() => { });
+                console.log(`[FIREBASE GLOBAL] Đã thiết lập lắng nghe Alert cho ${hubs.length} Hubs.`);
+            } catch (err) {
+                console.error("[FIREBASE GLOBAL] Lỗi khi cài đặt thông báo:", err);
             }
         };
 
-        // Lắng nghe tất cả các phiên bản của event name (Hoa/Thường)
-        signalRService.on("ReceiveAlertNotification", handleReceiveAlert);
-        signalRService.on("receivealertnotification", handleReceiveAlert);
+        setupGlobalListeners();
 
         return () => {
-            signalRService.off("ReceiveAlertNotification", handleReceiveAlert);
-            signalRService.off("receivealertnotification", handleReceiveAlert);
+            console.log("[FIREBASE GLOBAL] Cleanup: Đã gỡ bỏ các listener cảnh báo.");
+            unsubscribes.current.forEach(unsub => unsub());
+            unsubscribes.current = [];
         };
     }, [isAuthenticated, showNotification]);
 

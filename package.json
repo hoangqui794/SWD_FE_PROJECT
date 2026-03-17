@@ -12,6 +12,7 @@
     "@google/generative-ai": "^0.24.1",
     "@microsoft/signalr": "^10.0.0",
     "axios": "^1.13.2",
+    "firebase": "^12.10.0",
     "react": "^19.2.3",
     "react-dom": "^19.2.3",
     "react-router-dom": "^7.12.0"
