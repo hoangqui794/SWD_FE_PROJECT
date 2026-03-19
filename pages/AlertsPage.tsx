@@ -34,6 +34,8 @@ const AlertsPage: React.FC = () => {
     const [resolveConfirmId, setResolveConfirmId] = useState<number | null>(null);
     const [sites, setSites] = useState<Site[]>([]);
     const [selectedSiteId, setSelectedSiteId] = useState<number>(0);
+    const [historySortBy, setHistorySortBy] = useState<'sentAt' | 'severity' | 'isRead'>('sentAt');
+    const [historySortOrder, setHistorySortOrder] = useState<'asc' | 'desc'>('desc');
 
     // --- Alert Rules State ---
     const [rules, setRules] = useState<AlertRule[]>([]);
@@ -68,23 +70,12 @@ const AlertsPage: React.FC = () => {
             const response = await notificationService.getHistory({
                 page: currentPage,
                 pageSize: pageSize,
-                siteId: selectedSiteId > 0 ? selectedSiteId : undefined
+                siteId: selectedSiteId > 0 ? selectedSiteId : undefined,
+                sortBy: historySortBy,
+                sortOrder: historySortOrder
             });
 
-            let data = response.data;
-
-            // Client-side filtering for search term if needed (though API usually handles it, 
-            // but for flexibility with detailed messages we keep it)
-            if (searchTerm) {
-                const term = searchTerm.toLowerCase();
-                data = data.filter(a =>
-                    a.sensorName.toLowerCase().includes(term) ||
-                    a.message.toLowerCase().includes(term) ||
-                    a.location.toLowerCase().includes(term)
-                );
-            }
-
-            setAlerts(data);
+            setAlerts(response.data);
             setTotalCount(response.totalCount);
         } catch (error) {
             console.error("Failed to fetch alerts", error);
@@ -153,7 +144,7 @@ const AlertsPage: React.FC = () => {
             fetchRules();
             fetchSensors(); // Load sensors for dropdown
         }
-    }, [activeTab, searchTerm, currentPage, selectedSiteId]);
+    }, [activeTab, currentPage, selectedSiteId, historySortBy, historySortOrder]);
 
     // Real-time updates via SignalR
     useEffect(() => {
@@ -372,41 +363,73 @@ const AlertsPage: React.FC = () => {
                 {/* TAB 1: HISTORY TABLE */}
                 {activeTab === 'history' && !isLoading && (
                     <>
-                        <div className="p-4 border-b border-slate-200 dark:border-border-muted flex flex-wrap gap-4 items-center justify-between bg-slate-50/50 dark:bg-zinc-900/30">
-                            <div className="flex flex-wrap gap-4 items-center w-full md:w-auto">
-                                <div className="relative w-full max-w-sm">
-                                    <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm">search</span>
-                                    <input
-                                        value={searchTerm}
-                                        onChange={(e) => { setSearchTerm(e.target.value); setCurrentPage(1); }}
-                                        className="w-full bg-white dark:bg-background-dark border border-slate-200 dark:border-border-muted text-xs rounded-lg pl-10 focus:ring-1 focus:ring-primary h-9 text-slate-900 dark:text-white transition-colors"
-                                        placeholder="Search by sensor name..."
-                                    />
-                                </div>
-
-                                {isAdmin && (
-                                    <div className="relative w-full md:w-64">
-                                        <select
-                                            value={selectedSiteId}
-                                            onChange={(e) => { setSelectedSiteId(Number(e.target.value)); setCurrentPage(1); }}
-                                            className="w-full bg-white dark:bg-background-dark border border-slate-200 dark:border-border-muted text-xs rounded-lg px-3 focus:ring-1 focus:ring-primary h-9 text-slate-900 dark:text-white transition-colors appearance-none"
-                                        >
-                                            <option value={0}>All Sites</option>
-                                            {sites.map(site => (
-                                                <option key={site.siteId} value={site.siteId}>
-                                                    {site.name}
-                                                </option>
-                                            ))}
-                                        </select>
-                                        <span className="material-symbols-outlined absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none text-sm">expand_more</span>
-                                    </div>
-                                )}
+                        <div className="p-4 border-b border-slate-200 dark:border-border-muted flex flex-wrap gap-2 items-center bg-slate-50/50 dark:bg-zinc-900/40 backdrop-blur-sm">
+                            {/* Search Input - Replicated from image */}
+                            <div className="relative flex-1 min-w-[280px] max-w-sm group">
+                                <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-primary text-sm transition-colors">search</span>
+                                <input
+                                    type="text"
+                                    placeholder="Search by name or ID..."
+                                    value={searchTerm}
+                                    onChange={(e) => { setSearchTerm(e.target.value); setCurrentPage(1); }}
+                                    className="w-full bg-white dark:bg-zinc-900 border border-slate-200 dark:border-border-muted rounded-lg pl-9 pr-4 py-1.5 text-xs text-slate-900 dark:text-white outline-none focus:ring-1 focus:ring-primary/50 transition-all font-medium placeholder:text-slate-400 dark:placeholder:text-slate-500"
+                                />
                             </div>
-                            <div className="flex items-center gap-3 text-xs text-slate-500">
-                                Showing {totalCount > 0 ? ((currentPage - 1) * pageSize) + 1 : 0}-{Math.min(currentPage * pageSize, totalCount)} of {totalCount}
-                                <button onClick={fetchAlerts} className="ml-2 p-1 hover:text-slate-900 dark:hover:text-white transition-colors" title="Refresh">
-                                    <span className="material-symbols-outlined text-sm">refresh</span>
-                                </button>
+
+                            {/* All Organizations / Sites Dropdown */}
+                            {isAdmin && (
+                                <div className="relative">
+                                    <select
+                                        value={selectedSiteId}
+                                        onChange={(e) => { setSelectedSiteId(Number(e.target.value)); setCurrentPage(1); }}
+                                        className="bg-white dark:bg-zinc-900 border border-slate-200 dark:border-border-muted rounded-lg px-4 py-1.5 text-xs font-bold text-slate-900 dark:text-white outline-none focus:ring-1 focus:ring-primary/50 transition-all appearance-none cursor-pointer pr-10 min-w-[160px]"
+                                    >
+                                        <option value="0">All Organizations</option>
+                                        {sites.map(site => (
+                                            <option key={site.siteId} value={site.siteId}>{site.name}</option>
+                                        ))}
+                                    </select>
+                                    <span className="material-symbols-outlined absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none text-sm">expand_more</span>
+                                </div>
+                            )}
+
+                            {/* Sort By Dropdown - Re-enabled */}
+                            <div className="relative">
+                                <select
+                                    value={historySortBy}
+                                    onChange={(e) => { setHistorySortBy(e.target.value as any); setCurrentPage(1); }}
+                                    className="bg-white dark:bg-zinc-900 border border-slate-200 dark:border-border-muted rounded-lg px-4 py-1.5 text-xs font-bold text-slate-900 dark:text-white outline-none focus:ring-1 focus:ring-primary/50 transition-all appearance-none cursor-pointer pr-10 min-w-[120px]"
+                                >
+                                    <option value="sentAt">Default</option>
+                                    <option value="severity">Severity</option>
+                                    <option value="isRead">Read Status</option>
+                                </select>
+                                <span className="material-symbols-outlined absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none text-sm">expand_more</span>
+                            </div>
+
+                            {/* Sort Order Button - Re-enabled */}
+                            <button
+                                onClick={() => { setHistorySortOrder(o => o === 'asc' ? 'desc' : 'asc'); setCurrentPage(1); }}
+                                className="flex items-center gap-2 bg-white dark:bg-zinc-900 border border-slate-200 dark:border-border-muted rounded-lg px-4 py-1.5 text-xs font-black text-slate-900 dark:text-white hover:bg-slate-50 dark:hover:bg-zinc-800 transition-all shadow-sm"
+                            >
+                                <span className="material-symbols-outlined text-sm font-bold">
+                                    {historySortOrder === 'asc' ? 'arrow_upward' : 'arrow_downward'}
+                                </span>
+                                {historySortOrder.toUpperCase()}
+                            </button>
+
+                            {/* Refresh Button */}
+                            <button
+                                onClick={() => fetchAlerts()}
+                                title="Refresh Data"
+                                className="w-10 h-8 flex items-center justify-center bg-white dark:bg-zinc-800 border border-slate-200 dark:border-border-muted rounded-lg hover:bg-slate-50 dark:hover:bg-zinc-700 text-slate-400 hover:text-primary transition-all"
+                            >
+                                <span className="material-symbols-outlined text-sm">refresh</span>
+                            </button>
+
+                            <div className="flex-1"></div>
+                            <div className="text-[10px] font-bold text-slate-500 uppercase tracking-widest hidden lg:block">
+                                Showing {totalCount > 0 ? ((currentPage - 1) * pageSize) + 1 : 0}-{Math.min(currentPage * pageSize, totalCount)} / {totalCount}
                             </div>
                         </div>
 
@@ -419,10 +442,16 @@ const AlertsPage: React.FC = () => {
                                         <th className="px-6 py-4 text-[11px] font-extrabold uppercase tracking-widest text-inherit">Message</th>
                                         <th className="px-6 py-4 text-[11px] font-extrabold uppercase tracking-widest text-inherit">Severity</th>
                                         <th className="px-6 py-4 text-[11px] font-extrabold uppercase tracking-widest text-inherit">Status</th>
+                                        {canManage && <th className="px-6 py-4 text-[11px] font-extrabold uppercase tracking-widest text-inherit text-right">Actions</th>}
                                     </tr>
                                 </thead>
-                                <tbody className="divide-y divide-slate-100 dark:divide-border-muted">
-                                    {alerts.map((alert) => (
+                                <tbody className="divide-y divide-slate-100 dark:divide-border-muted text-left">
+                                    {(activeTab === 'history' ? alerts.filter(a => 
+                                        !searchTerm || 
+                                        a.sensorName?.toLowerCase().includes(searchTerm.toLowerCase()) || 
+                                        a.message?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                                        a.location?.toLowerCase().includes(searchTerm.toLowerCase())
+                                    ) : alerts).map((alert) => (
                                         <tr key={alert.id} className="hover:bg-slate-50 dark:hover:bg-white/5 transition-colors">
                                             <td className="px-6 py-4 text-xs font-mono text-slate-500 dark:text-slate-300">
                                                 {new Date(alert.time).toLocaleString('vi-VN')}
@@ -444,11 +473,24 @@ const AlertsPage: React.FC = () => {
                                                 </span>
                                             </td>
                                             <td className="px-6 py-4">
-                                                <span className={`flex items-center gap-2 text-[10px] font-bold uppercase ${alert.status === 'Active' ? 'text-red-500 animate-pulse' : 'text-slate-400'}`}>
-                                                    <span className={`w-1.5 h-1.5 rounded-full ${alert.status === 'Active' ? 'bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.5)]' : 'bg-slate-300 dark:bg-slate-600'}`}></span>
+                                                <span className={`flex items-center gap-2 text-[10px] font-bold uppercase ${alert.status?.toLowerCase() === 'active' ? 'text-red-500 animate-pulse' : 'text-slate-400'}`}>
+                                                    <span className={`w-1.5 h-1.5 rounded-full ${alert.status?.toLowerCase() === 'active' ? 'bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.5)]' : 'bg-slate-300 dark:bg-slate-600'}`}></span>
                                                     {alert.status}
                                                 </span>
                                             </td>
+                                            {canManage && (
+                                                <td className="px-6 py-4 text-right">
+                                                    <div className="flex justify-end gap-2">
+                                                        <button
+                                                            onClick={() => handleDeleteAlert(alert.id)}
+                                                            className="p-1.5 bg-rose-500/10 text-rose-500 hover:bg-rose-500 hover:text-white border border-rose-500/20 rounded-lg transition-all"
+                                                            title="Delete Alert"
+                                                        >
+                                                            <span className="material-symbols-outlined text-sm">delete</span>
+                                                        </button>
+                                                    </div>
+                                                </td>
+                                            )}
                                         </tr>
                                     ))}
                                     {alerts.length === 0 && (
@@ -476,58 +518,66 @@ const AlertsPage: React.FC = () => {
                 {/* TAB 2: RULES TABLE */}
                 {activeTab === 'rules' && !isLoading && (
                     <>
-                        <div className="p-4 border-b border-slate-200 dark:border-border-muted flex flex-wrap gap-3 items-center bg-slate-50/50 dark:bg-zinc-900/30">
-                            {/* Search */}
-                            <div className="relative flex-1 min-w-[180px] max-w-sm">
-                                <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm">search</span>
+                        <div className="p-4 border-b border-slate-200 dark:border-border-muted flex flex-wrap gap-2 items-center bg-slate-50/50 dark:bg-zinc-900/40 backdrop-blur-sm">
+                            {/* Search Input - Replicated from image */}
+                            <div className="relative flex-1 min-w-[280px] max-w-sm group">
+                                <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-primary text-sm transition-colors">search</span>
                                 <input
+                                    type="text"
+                                    placeholder="Search by name or ID..."
                                     value={ruleSearchTerm}
                                     onChange={(e) => setRuleSearchTerm(e.target.value)}
-                                    className="w-full bg-white dark:bg-background-dark border border-slate-200 dark:border-border-muted text-xs rounded-lg pl-10 pr-4 focus:ring-1 focus:ring-primary h-9 text-slate-900 dark:text-white transition-colors"
-                                    placeholder="Search rules or sensors..."
+                                    className="w-full bg-white dark:bg-zinc-900 border border-slate-200 dark:border-border-muted rounded-lg pl-9 pr-4 py-1.5 text-xs text-slate-900 dark:text-white outline-none focus:ring-1 focus:ring-primary/50 transition-all font-medium placeholder:text-slate-400 dark:placeholder:text-slate-500"
                                 />
                             </div>
 
-                            {/* Priority Filter */}
-                            <select
-                                value={rulePriorityFilter}
-                                onChange={(e) => setRulePriorityFilter(e.target.value)}
-                                className="bg-white dark:bg-background-dark border border-slate-200 dark:border-border-muted text-xs rounded-lg px-3 focus:ring-1 focus:ring-primary h-9 text-slate-900 dark:text-white transition-colors"
-                            >
-                                <option value="All">All Priorities</option>
-                                <option value="High">High</option>
-                                <option value="Medium">Medium</option>
-                                <option value="Low">Low</option>
-                            </select>
+                            {/* Priority Filter Dropdown */}
+                            <div className="relative">
+                                <select
+                                    value={rulePriorityFilter}
+                                    onChange={(e) => setRulePriorityFilter(e.target.value)}
+                                    className="bg-white dark:bg-zinc-900 border border-slate-200 dark:border-border-muted rounded-lg px-4 py-1.5 text-xs font-bold text-slate-900 dark:text-white outline-none focus:ring-1 focus:ring-primary/50 transition-all appearance-none cursor-pointer pr-10 min-w-[140px]"
+                                >
+                                    <option value="All">All Priorities</option>
+                                    <option value="High">High</option>
+                                    <option value="Medium">Medium</option>
+                                    <option value="Low">Low</option>
+                                </select>
+                                <span className="material-symbols-outlined absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none text-sm">filter_alt</span>
+                            </div>
 
-                            {/* Sort By */}
-                            <select
-                                value={ruleSortBy}
-                                onChange={(e) => setRuleSortBy(e.target.value as any)}
-                                className="bg-white dark:bg-background-dark border border-slate-200 dark:border-border-muted text-xs rounded-lg px-3 focus:ring-1 focus:ring-primary h-9 text-slate-900 dark:text-white transition-colors"
-                            >
-                                <option value="ruleId">Default</option>
-                                <option value="name">Name</option>
-                                <option value="priority">Priority</option>
-                                <option value="isActive">Status</option>
-                                <option value="sensorId">Sensor</option>
-                            </select>
+                            {/* Sort By Dropdown */}
+                            <div className="relative">
+                                <select
+                                    value={ruleSortBy}
+                                    onChange={(e) => setRuleSortBy(e.target.value as any)}
+                                    className="bg-white dark:bg-zinc-900 border border-slate-200 dark:border-border-muted rounded-lg px-4 py-1.5 text-xs font-bold text-slate-900 dark:text-white outline-none focus:ring-1 focus:ring-primary/50 transition-all appearance-none cursor-pointer pr-10 min-w-[120px]"
+                                >
+                                    <option value="ruleId">Default</option>
+                                    <option value="name">Name</option>
+                                    <option value="priority">Priority</option>
+                                    <option value="isActive">Status</option>
+                                    <option value="sensorId">Sensor</option>
+                                </select>
+                                <span className="material-symbols-outlined absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none text-sm">expand_more</span>
+                            </div>
 
-                            {/* Sort Order */}
+                            {/* Sort Order Button */}
                             <button
                                 onClick={() => setRuleSortOrder(o => o === 'asc' ? 'desc' : 'asc')}
-                                className="bg-white dark:bg-background-dark border border-slate-200 dark:border-border-muted rounded-lg px-3 h-9 text-xs text-slate-900 dark:text-white transition-all flex items-center gap-1"
+                                className="flex items-center gap-2 bg-white dark:bg-zinc-900 border border-slate-200 dark:border-border-muted rounded-lg px-4 py-1.5 text-xs font-black text-slate-900 dark:text-white hover:bg-slate-50 dark:hover:bg-zinc-800 transition-all shadow-sm"
                             >
-                                <span className="material-symbols-outlined text-sm">
+                                <span className="material-symbols-outlined text-sm font-bold">
                                     {ruleSortOrder === 'asc' ? 'arrow_upward' : 'arrow_downward'}
                                 </span>
                                 {ruleSortOrder.toUpperCase()}
                             </button>
 
-                            {/* Refresh */}
+                            {/* Refresh Button */}
                             <button
                                 onClick={() => fetchRules()}
-                                className="px-3 h-9 bg-white dark:bg-zinc-800 hover:bg-slate-50 border border-slate-200 dark:border-border-muted rounded-lg text-xs text-slate-700 dark:text-white flex items-center gap-1 transition-all"
+                                title="Refresh Data"
+                                className="w-10 h-8 flex items-center justify-center bg-white dark:bg-zinc-800 border border-slate-200 dark:border-border-muted rounded-lg hover:bg-slate-50 dark:hover:bg-zinc-700 text-slate-400 hover:text-primary transition-all"
                             >
                                 <span className="material-symbols-outlined text-sm">refresh</span>
                             </button>

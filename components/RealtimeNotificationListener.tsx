@@ -49,12 +49,6 @@ const RealtimeNotificationListener: React.FC = () => {
                         // HIỂN THỊ THÔNG BÁO TOÀN CỤC (TOAST)
                         // Vì component này ở App.tsx nên dù user đang ở trang nào cũng sẽ thấy
                         showNotification(finalMessage, type);
-
-                        // Phát âm thanh nếu là cảnh báo High
-                        if (type === 'error') {
-                            const audio = new Audio('/alert-sound.mp3');
-                            audio.play().catch(() => {});
-                        }
                     });
                     unsubscribes.current.push(unsub);
                 });

@@ -28,12 +28,14 @@ export interface NotificationHistoryResponse {
 export interface NotificationHistoryParams {
     userId?: number;
     siteId?: number;
-    sensorId?: number;
+    hubId?: number;
     severity?: string;
     from?: string;
     to?: string;
     page?: number;
     pageSize?: number;
+    sortBy?: 'sentAt' | 'severity' | 'isRead';
+    sortOrder?: 'asc' | 'desc';
 }
 
 export const notificationService = {

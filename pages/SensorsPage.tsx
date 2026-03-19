@@ -8,6 +8,7 @@ import { useNotification } from '../context/NotificationContext';
 import { sensorService, Sensor, CreateSensorRequest } from '../services/sensorService';
 import { hubService, Hub } from '../services/hubService';
 import { siteService, Site } from '../services/siteService';
+import { alertService, AlertRule, CreateAlertRuleRequest } from '../services/alertService';
 import { signalRService } from '../services/signalrService';
 
 
@@ -47,6 +48,22 @@ const SensorsPage: React.FC = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [editingSensorId, setEditingSensorId] = useState<number | null>(null);
   const [deleteTargetId, setDeleteTargetId] = useState<number | null>(null);
+
+  // --- Alert Rule Config State ---
+  const [isRuleModalOpen, setIsRuleModalOpen] = useState(false);
+  const [selectedSensorForRule, setSelectedSensorForRule] = useState<Sensor | null>(null);
+  const [isSubmittingRule, setIsSubmittingRule] = useState(false);
+  const [isLoadingRuleData, setIsLoadingRuleData] = useState(false);
+  const [editingRuleId, setEditingRuleId] = useState<number | null>(null);
+  const [ruleFormData, setRuleFormData] = useState<CreateAlertRuleRequest>({
+    sensorId: 0,
+    name: '',
+    conditionType: 'MinMax',
+    minVal: 0,
+    maxVal: 100,
+    notificationMethod: 'Email',
+    priority: 'High'
+  });
 
   // Debounce ref for sensor status to handle OFF→ON→OFF bounce
   const sensorStatusTimeouts = useRef<Record<number, ReturnType<typeof setTimeout>>>({});
@@ -203,6 +220,72 @@ const SensorsPage: React.FC = () => {
       showNotification('Lỗi khi xóa sensor: ' + (error.response?.data?.message || error.message), 'error');
     } finally {
       setDeleteTargetId(null);
+    }
+  };
+
+  // --- Handlers cho Alert Rule ---
+  const handleOpenRuleModal = async (sensor: Sensor) => {
+    setSelectedSensorForRule(sensor);
+    setEditingRuleId(null); // Reset
+    setRuleFormData({
+      sensorId: sensor.sensorId,
+      name: `Alert for ${sensor.sensorName}`,
+      conditionType: 'MinMax',
+      minVal: 0,
+      maxVal: 50,
+      notificationMethod: 'Email',
+      priority: 'High'
+    });
+
+    setIsRuleModalOpen(true);
+    setIsLoadingRuleData(true);
+
+    try {
+      // Gọi API lấy danh sách Rules và lọc theo sensorName (hoặc sensorId nếu được hỗ trợ)
+      const rules = await alertService.getRules({ search: sensor.sensorName });
+      const existingRule = rules.find(r => r.sensorId === sensor.sensorId);
+
+      if (existingRule) {
+        console.log("Found existing rule for sensor:", existingRule);
+        setEditingRuleId(existingRule.ruleId);
+        setRuleFormData({
+          sensorId: existingRule.sensorId,
+          name: existingRule.name,
+          conditionType: existingRule.conditionType,
+          minVal: existingRule.minVal,
+          maxVal: existingRule.maxVal,
+          notificationMethod: existingRule.notificationMethod,
+          priority: existingRule.priority
+        });
+      }
+    } catch (error) {
+      console.warn("Could not fetch existing alert rule data", error);
+    } finally {
+      setIsLoadingRuleData(false);
+    }
+  };
+
+  const handleSaveRule = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedSensorForRule) return;
+
+    setIsSubmittingRule(true);
+    try {
+      if (editingRuleId) {
+        // Cập nhật Rule cũ (PUT)
+        await alertService.updateRule(editingRuleId, ruleFormData);
+        showNotification(`Đã cập nhật ngưỡng cảnh báo cho ${selectedSensorForRule.sensorName}`, 'success');
+      } else {
+        // Tạo Rule mới (POST)
+        await alertService.createRule(ruleFormData);
+        showNotification(`Đã tạo ngưỡng cảnh báo mới cho ${selectedSensorForRule.sensorName}`, 'success');
+      }
+      setIsRuleModalOpen(false);
+    } catch (error: any) {
+      console.error("Failed to save alert rule", error);
+      showNotification('Lỗi khi lưu quy tắc cảnh báo: ' + (error.response?.data?.message || error.message), 'error');
+    } finally {
+      setIsSubmittingRule(false);
     }
   };
 
@@ -443,15 +526,22 @@ const SensorsPage: React.FC = () => {
                     {canManage && (
                       <td className="px-6 py-4 text-right flex justify-end gap-2">
                         <button
+                          onClick={() => handleOpenRuleModal(sensor)}
+                          className="p-1 text-slate-400 hover:text-amber-500 transition-colors"
+                          title="Configure Alert Rule (Min/Max)"
+                        >
+                          <span className="material-symbols-outlined text-sm">notifications_active</span>
+                        </button>
+                        <button
                           onClick={() => handleOpenEditModal(sensor)}
-                          className="text-slate-400 hover:text-primary dark:hover:text-white transition-colors"
+                          className="p-1 text-slate-400 hover:text-primary dark:hover:text-white transition-colors"
                           title="Edit"
                         >
                           <span className="material-symbols-outlined text-sm">edit</span>
                         </button>
                         <button
                           onClick={() => setDeleteTargetId(sensor.sensorId)}
-                          className="text-slate-400 hover:text-red-500 transition-colors"
+                          className="p-1 text-slate-400 hover:text-red-500 transition-colors"
                           title="Delete"
                         >
                           <span className="material-symbols-outlined text-sm">delete</span>
@@ -573,6 +663,111 @@ const SensorsPage: React.FC = () => {
             </button>
           </div>
         </div>
+      </Modal>
+      {/* Alert Rule Configuration Modal */}
+      <Modal isOpen={isRuleModalOpen} onClose={() => setIsRuleModalOpen(false)} title={editingRuleId ? "Update Alert Thresholds" : "Configure Alert Thresholds"}>
+        {isLoadingRuleData ? (
+          <div className="p-12 flex flex-col items-center justify-center gap-4">
+            <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-primary"></div>
+            <p className="text-sm text-slate-500 font-medium">Đang tải dữ liệu cũ...</p>
+          </div>
+        ) : (
+          <form onSubmit={handleSaveRule} className="p-6 space-y-5">
+            <div className="bg-slate-50 dark:bg-zinc-900 p-4 rounded-xl border border-slate-200 dark:border-border-muted flex items-center gap-4">
+              <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
+                <span className="material-symbols-outlined text-primary">sensors</span>
+              </div>
+              <div>
+                <p className="text-[10px] font-bold text-slate-400 uppercase">Target Sensor</p>
+                <h5 className="text-sm font-bold text-slate-900 dark:text-white">{selectedSensorForRule?.sensorName}</h5>
+                <p className="text-[10px] text-slate-500">{selectedSensorForRule?.hubName}</p>
+              </div>
+              {editingRuleId && (
+                <div className="ml-auto px-2 py-1 bg-amber-500/10 border border-amber-500/20 rounded-md">
+                  <span className="text-[9px] font-black text-amber-500 uppercase">Existing Rule</span>
+                </div>
+              )}
+            </div>
+
+            <div className="space-y-4">
+              <div>
+                <label className="block text-[10px] font-bold text-slate-400 uppercase mb-2 tracking-widest">Rule Name</label>
+                <input
+                  required
+                  className="w-full bg-white dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 rounded-lg px-3 py-2 text-sm text-slate-900 dark:text-white outline-none focus:ring-1 focus:ring-primary transition-all"
+                  value={ruleFormData.name}
+                  onChange={e => setRuleFormData({ ...ruleFormData, name: e.target.value })}
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-[10px] font-bold text-slate-400 uppercase mb-2">Min Threshold</label>
+                  <input
+                    type="number" step="0.1"
+                    className="w-full bg-white dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 rounded-lg px-3 py-2 text-sm text-slate-900 dark:text-white outline-none focus:ring-1 focus:ring-primary"
+                    value={ruleFormData.minVal}
+                    onChange={e => setRuleFormData({ ...ruleFormData, minVal: Number(e.target.value) })}
+                  />
+                </div>
+                <div>
+                  <label className="block text-[10px] font-bold text-slate-400 uppercase mb-2">Max Threshold</label>
+                  <input
+                    type="number" step="0.1"
+                    className="w-full bg-white dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 rounded-lg px-3 py-2 text-sm text-slate-900 dark:text-white outline-none focus:ring-1 focus:ring-primary"
+                    value={ruleFormData.maxVal}
+                    onChange={e => setRuleFormData({ ...ruleFormData, maxVal: Number(e.target.value) })}
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-[10px] font-bold text-slate-400 uppercase mb-2">Priority</label>
+                  <select
+                    className="w-full bg-white dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 rounded-lg px-3 py-2 text-xs"
+                    value={ruleFormData.priority}
+                    onChange={e => setRuleFormData({ ...ruleFormData, priority: e.target.value })}
+                  >
+                    <option value="Low">Low</option>
+                    <option value="Medium">Medium</option>
+                    <option value="High">High</option>
+                    <option value="Urgent">Urgent</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-[10px] font-bold text-slate-400 uppercase mb-2">Notify Via</label>
+                  <select
+                    className="w-full bg-white dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 rounded-lg px-3 py-2 text-xs"
+                    value={ruleFormData.notificationMethod}
+                    onChange={e => setRuleFormData({ ...ruleFormData, notificationMethod: e.target.value })}
+                  >
+                    <option value="Email">Email</option>
+                    <option value="SMS">SMS</option>
+                    <option value="Web Push">Web Push</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+
+            <div className="pt-4 flex gap-3">
+              <button
+                type="button"
+                onClick={() => setIsRuleModalOpen(false)}
+                className="flex-1 px-4 py-2 border border-slate-200 dark:border-border-muted text-slate-500 rounded-lg text-xs font-bold uppercase hover:bg-slate-50"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                disabled={isSubmittingRule}
+                className="flex-1 px-4 py-2 bg-primary text-white rounded-lg text-xs font-bold uppercase hover:bg-primary-light shadow-lg shadow-primary/20 disabled:opacity-50"
+              >
+                {isSubmittingRule ? 'Saving...' : (editingRuleId ? 'Update Settings' : 'Save Settings')}
+              </button>
+            </div>
+          </form>
+        )}
       </Modal>
     </Layout>
   );
