@@ -81,6 +81,14 @@ export const alertService = {
     },
 
     /**
+     * Lấy chi tiết một quy tắc cảnh báo qua ID
+     */
+    getRuleById: async (id: number): Promise<AlertRule> => {
+        const response = await apiClient.get< { data: AlertRule } >(`/api/alerts/rules/${id}`);
+        return response.data.data;
+    },
+
+    /**
      * Tạo quy tắc cảnh báo mới
      */
     createRule: async (data: CreateAlertRuleRequest): Promise<any> => {

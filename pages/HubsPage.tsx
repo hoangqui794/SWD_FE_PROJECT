@@ -43,13 +43,50 @@ const HubsPage: React.FC = () => {
   const fetchHubs = useCallback(async (showLoading = true) => {
     if (showLoading) setIsLoading(true);
     try {
-      const params: any = { sortBy, sortOrder };
-      if (searchTerm) params.search = searchTerm;
-      if (filterOnline !== '') params.isOnline = filterOnline === 'true';
-      if (siteId) params.siteId = Number(siteId);
+      if (siteId) {
+        // --- CÁCH MỚI: Truy tìm Hub ID từ cả 2 nguồn để chắc chắn có dữ liệu ---
+        setHubs([]); 
+        
+        // 1. Thử gọi API lọc theo site_id (Cực kỳ an toàn)
+        const hubsFromFilter = await hubService.getAll({ site_id: Number(siteId) });
+        
+        // 2. Thử lấy từ danh sách Site tổng (Cách bạn chỉ)
+        const allSites = await siteService.getAll({ sortOrder: 'asc' });
+        const siteData = allSites.find(s => s.siteId === Number(siteId));
+        
+        if (siteData) {
+          setSelectedSiteName(siteData.name);
+          
+          // Ưu tiên lấy Hub ID từ list Site, sau đó gọi chi tiết từng Hub để có MAC Address
+          let targetHubIds: number[] = [];
+          if (siteData.hubs && siteData.hubs.length > 0) {
+              targetHubIds = siteData.hubs.map(h => h.hubId);
+          } else if (hubsFromFilter.length > 0) {
+              targetHubIds = hubsFromFilter.map(h => h.hubId);
+          }
 
-      const data = await hubService.getAll(params);
-      setHubs(data);
+          if (targetHubIds.length > 0) {
+            const hubDetailsPromises = targetHubIds.map(id => hubService.getById(id));
+            const fullHubs = await Promise.all(hubDetailsPromises);
+            setHubs(fullHubs);
+          } else {
+            setHubs([]);
+          }
+        } else if (hubsFromFilter.length > 0) {
+          // Trường hợp không tìm thấy siteData nhưng lại có kết quả từ bộ lọc
+          setHubs(hubsFromFilter);
+        } else {
+          setHubs([]);
+        }
+      } else {
+        // Nếu không có siteId, lấy toàn bộ danh sách Hub như bình thường
+        const params: any = { sortBy, sortOrder };
+        if (searchTerm) params.search = searchTerm;
+        if (filterOnline !== '') params.isOnline = filterOnline === 'true';
+
+        const data = await hubService.getAll(params);
+        setHubs(data);
+      }
     } catch (error) {
       console.error("Failed to fetch hubs", error);
     } finally {

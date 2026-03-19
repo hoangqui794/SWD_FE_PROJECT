@@ -3,6 +3,7 @@ import { useNotification } from '../context/NotificationContext';
 import { useAuth } from '../context/AuthContext';
 import { listenToHubAlerts } from '../services/firebase';
 import { hubService } from '../services/hubService';
+import { notificationService } from '../services/notificationService';
 
 /**
  * Component lắng nghe thông báo Real-time TOÀN CỤC.
@@ -12,6 +13,7 @@ const RealtimeNotificationListener: React.FC = () => {
     const { showNotification } = useNotification();
     const { isAuthenticated } = useAuth();
     const unsubscribes = useRef<(() => void)[]>([]);
+    const lastNotifiedId = useRef<number | null>(null);
 
     useEffect(() => {
         if (!isAuthenticated) return;
@@ -48,7 +50,15 @@ const RealtimeNotificationListener: React.FC = () => {
                         
                         // HIỂN THỊ THÔNG BÁO TOÀN CỤC (TOAST)
                         // Vì component này ở App.tsx nên dù user đang ở trang nào cũng sẽ thấy
-                        showNotification(finalMessage, type);
+                        if (alert.id && alert.id !== lastNotifiedId.current) {
+                            showNotification(finalMessage, type);
+                            lastNotifiedId.current = alert.id;
+                            
+                            // GỌI API ĐÁNH DẤU ĐÃ ĐỌC ĐỂ NGĂN HIỆN LẠI LIÊN TỤC
+                            notificationService.markAsRead(alert.id).catch(err => {
+                                console.error("[FIREBASE GLOBAL] Không thể đánh dấu đã đọc:", err);
+                            });
+                        }
                     });
                     unsubscribes.current.push(unsub);
                 });

@@ -683,29 +683,31 @@ const AlertsPage: React.FC = () => {
                         />
                     </div>
 
-                    <div>
-                        <label className="block text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase mb-2 tracking-widest">Target Sensor</label>
-                        <div className="relative">
-                            <select
-                                required
-                                className="w-full bg-slate-50 dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 rounded-lg px-3 py-2.5 text-sm text-slate-900 dark:text-white appearance-none focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary transition-all"
-                                value={ruleFormData.sensorId}
-                                onChange={e => setRuleFormData({ ...ruleFormData, sensorId: Number(e.target.value) })}
-                            >
-                                <option value={0} className="bg-white text-slate-400">-- Select Sensor --</option>
-                                {sensors.length > 0 ? (
-                                    sensors.map(s => (
-                                        <option key={s.sensorId} value={s.sensorId} className="bg-white dark:bg-zinc-800 text-slate-900 dark:text-white">
-                                            {s.sensorName} ({s.hubName})
-                                        </option>
-                                    ))
-                                ) : (
-                                    <option disabled className="bg-white text-slate-400">Loading sensors...</option>
-                                )}
-                            </select>
-                            <span className="material-symbols-outlined absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none text-lg">expand_more</span>
+                    {!editingRuleId && (
+                        <div>
+                            <label className="block text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase mb-2 tracking-widest">Target Sensor</label>
+                            <div className="relative">
+                                <select
+                                    required
+                                    className="w-full bg-slate-50 dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 rounded-lg px-3 py-2.5 text-sm text-slate-900 dark:text-white appearance-none focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary transition-all"
+                                    value={ruleFormData.sensorId}
+                                    onChange={e => setRuleFormData({ ...ruleFormData, sensorId: Number(e.target.value) })}
+                                >
+                                    <option value={0} className="bg-white text-slate-400">-- Select Sensor --</option>
+                                    {sensors.length > 0 ? (
+                                        sensors.map(s => (
+                                            <option key={s.sensorId} value={s.sensorId} className="bg-white dark:bg-zinc-800 text-slate-900 dark:text-white">
+                                                {s.sensorName} ({s.hubName})
+                                            </option>
+                                        ))
+                                    ) : (
+                                        <option disabled className="bg-white text-slate-400">Loading sensors...</option>
+                                    )}
+                                </select>
+                                <span className="material-symbols-outlined absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none text-lg">expand_more</span>
+                            </div>
                         </div>
-                    </div>
+                    )}
 
                     <div className="grid grid-cols-2 gap-5">
                         <div>

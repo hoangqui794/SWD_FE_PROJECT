@@ -8,6 +8,14 @@ export interface Site {
     address: string;
     geoLocation: string;
     hubCount: number;
+    hubs?: Array<{
+        hubId: number;
+        name: string;
+        macAddress?: string;
+        isOnline: boolean;
+        lastHandshake?: string;
+        sensorCount?: number;
+    }>;
 }
 
 export interface SiteQueryParams {

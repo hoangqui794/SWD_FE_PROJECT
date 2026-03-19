@@ -52,6 +52,7 @@ export interface HubHistoricalData {
 }
 
 export interface HubQueryParams {
+    site_id?: number;
     search?: string;
     isOnline?: boolean;
     pageNumber?: number;
@@ -70,6 +71,7 @@ interface ApiResponse<T> {
 export const hubService = {
     getAll: async (params?: HubQueryParams): Promise<Hub[]> => {
         const query: Record<string, any> = {};
+        if (params?.site_id) query.site_id = params.site_id;
         if (params?.search) query.search = params.search;
         if (params?.isOnline !== undefined) query.isOnline = params.isOnline;
         if (params?.pageNumber !== undefined) query.pageNumber = params.pageNumber;
@@ -91,6 +93,14 @@ export const hubService = {
 
     delete: async (id: number): Promise<void> => {
         await apiClient.delete(`/api/hubs/${id}`);
+    },
+
+    /**
+     * Lấy thông tin chi tiết một Hub theo ID (Dùng cho cả Site Hub filtering)
+     */
+    getById: async (id: number): Promise<Hub> => {
+        const response = await apiClient.get<{ data: Hub }>(`/api/hubs/${id}`);
+        return response.data.data;
     },
 
     getReadings: async (hubId: number, from?: string, to?: string): Promise<HubHistoricalData> => {

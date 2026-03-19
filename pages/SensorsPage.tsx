@@ -73,14 +73,20 @@ const SensorsPage: React.FC = () => {
     if (showLoading) setIsLoading(true);
     setError(null);
     try {
-      const data = await sensorService.getAll({
-        search: searchTerm || undefined,
-        hub_id: hubId ? Number(hubId) : filterHubId,
-        type: filterTypeId,
-        status: filterStatus || undefined,
-        sortBy,
-        sortOrder,
-      });
+      let data;
+      if (hubId) {
+        // --- CÁCH MỚI: Dùng API chuyên biệt theo Hub theo yêu cầu ---
+        data = await sensorService.getByHubId(Number(hubId));
+      } else {
+        data = await sensorService.getAll({
+          search: searchTerm || undefined,
+          hub_id: filterHubId,
+          type: filterTypeId,
+          status: filterStatus || undefined,
+          sortBy,
+          sortOrder,
+        });
+      }
       setSensors(data);
     } catch (error) {
       console.error("Failed to fetch sensors", error);
@@ -226,7 +232,8 @@ const SensorsPage: React.FC = () => {
   // --- Handlers cho Alert Rule ---
   const handleOpenRuleModal = async (sensor: Sensor) => {
     setSelectedSensorForRule(sensor);
-    setEditingRuleId(null); // Reset
+    setEditingRuleId(null);
+    setIsLoadingRuleData(true);
     setRuleFormData({
       sensorId: sensor.sensorId,
       name: `Alert for ${sensor.sensorName}`,
@@ -236,30 +243,27 @@ const SensorsPage: React.FC = () => {
       notificationMethod: 'Email',
       priority: 'High'
     });
-
     setIsRuleModalOpen(true);
-    setIsLoadingRuleData(true);
 
     try {
-      // Gọi API lấy danh sách Rules và lọc theo sensorName (hoặc sensorId nếu được hỗ trợ)
-      const rules = await alertService.getRules({ search: sensor.sensorName });
-      const existingRule = rules.find(r => r.sensorId === sensor.sensorId);
-
-      if (existingRule) {
-        console.log("Found existing rule for sensor:", existingRule);
-        setEditingRuleId(existingRule.ruleId);
-        setRuleFormData({
-          sensorId: existingRule.sensorId,
-          name: existingRule.name,
-          conditionType: existingRule.conditionType,
-          minVal: existingRule.minVal,
-          maxVal: existingRule.maxVal,
-          notificationMethod: existingRule.notificationMethod,
-          priority: existingRule.priority
-        });
+      // --- CÁCH MỚI: Dùng trực tiếp ruleId từ sensor data ---
+      if (sensor.ruleId) {
+        setEditingRuleId(sensor.ruleId);
+        const ruleData = await alertService.getRuleById(sensor.ruleId);
+        if (ruleData) {
+          setRuleFormData({
+            sensorId: sensor.sensorId,
+            name: ruleData.name,
+            conditionType: ruleData.conditionType,
+            minVal: ruleData.minVal,
+            maxVal: ruleData.maxVal,
+            notificationMethod: ruleData.notificationMethod,
+            priority: ruleData.priority
+          });
+        }
       }
     } catch (error) {
-      console.warn("Could not fetch existing alert rule data", error);
+      console.error("Failed to load existing alert rule", error);
     } finally {
       setIsLoadingRuleData(false);
     }

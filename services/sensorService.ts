@@ -1,16 +1,19 @@
 import apiClient from './apiClient';
 
-// Interface định nghĩa cấu trúc dữ liệu của Sensor (khớp với API response)
 export interface Sensor {
     sensorId: number;          // ID của sensor
     hubId: number;             // ID của hub
     hubName: string;           // Tên hub (VD: "EOH-Hub-HCMC-ThuDuc")
-    typeId: number;            // ID của loại sensor (1: Temperature, 2: Humidity, 3: Pressure)
+    typeId: number;            // ID của loại sensor
     typeName: string;          // Tên loại sensor
-    sensorName: string;        // Tên sensor (VD: "Temp-Sensor-01")
+    sensorName: string;        // Tên sensor
     currentValue: number;      // Giá trị hiện tại
-    lastUpdate: string | null; // Thời gian cập nhật cuối (ISO format)
-    status: string;            // Trạng thái: "Online", "Offline", "Warning"
+    lastUpdate: string | null; // Thời gian cập nhật cuối
+    status: string;            // Trạng thái: "Online", "Offline"
+    ruleId?: number;           // ID của rule nếu có
+    ruleName?: string;         // Tên rule
+    minVal?: number;
+    maxVal?: number;
 }
 
 // Interface cho việc tạo sensor mới
@@ -74,10 +77,15 @@ export const sensorService = {
         await apiClient.put(`/api/sensors/${id}`, data);
     },
 
-    /**
-     * Xóa sensor
-     */
     delete: async (id: number): Promise<void> => {
         await apiClient.delete(`/api/sensors/${id}`);
+    },
+
+    /**
+     * Lấy danh sách sensors theo Hub qua API đặc thù: /api/hubs/{hubId}/sensors
+     */
+    getByHubId: async (hubId: number): Promise<Sensor[]> => {
+        const response = await apiClient.get<ApiResponse<Sensor[]>>(`/api/hubs/${hubId}/sensors`);
+        return response.data.data;
     },
 };
