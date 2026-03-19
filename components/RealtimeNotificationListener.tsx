@@ -20,50 +20,54 @@ const RealtimeNotificationListener: React.FC = () => {
 
         const setupGlobalListeners = async () => {
             try {
-                // 1. Lấy danh sách tất cả Hubs mà user có quyền truy cập
-                console.log("[FIREBASE GLOBAL] Đang tải danh sách Hubs cho thông báo toàn cục...");
+                // 1. Lấy danh sách Hubs từ Backend
+                console.log("[FIREBASE GLOBAL] Đang tải danh sách Hubs để lắng nghe Firebase...");
                 const hubs = await hubService.getAll();
                 
-                // Cleanup bất kỳ listener cũ nào trước khi tạo mới (tránh trùng lặp)
+                // Cleanup bất kỳ listener cũ nào trước khi tạo mới
                 unsubscribes.current.forEach(unsub => unsub());
                 unsubscribes.current = [];
 
                 // 2. Với mỗi Hub, gắn một listener Firebase vào nốt /Alert
                 hubs.forEach(hub => {
-                    const unsub = listenToHubAlerts(hub.hubId, (alert) => {
+                    const unsub = listenToHubAlerts(hub.hubId, (alert: any) => {
                         if (!alert) return;
+                        console.warn(`🔔 [FIREBASE] Alert từ Hub ${hub.hubId}:`, alert);
 
-                        console.log(`>>> [GLOBAL ALERT] Hub ${hub.hubId}:`, alert);
-
-                        const priority = String(alert.priority || '').toLowerCase();
-                        const ruleName = alert.ruleName || "Cảnh báo hệ thống";
-                        const message = alert.message || "Phát hiện chỉ số bất thường";
-                        const value = alert.value !== undefined ? ` (Giá trị: ${alert.value})` : "";
-
-                        // Map màu sắc dựa trên mức độ nghiêm trọng
-                        let type: 'error' | 'warning' | 'info' | 'success' = 'info';
-                        if (priority === 'high' || priority === 'urgent') type = 'error';
-                        else if (priority === 'medium') type = 'warning';
-                        else if (priority === 'low') type = 'info';
-
-                        const finalMessage = `🚨 ${ruleName}: ${message}${value}`;
+                        // Bóc tách dữ liệu theo đúng cấu trúc BE vừa cung cấp
+                        const id = alert.id || alert.Id;
+                        const message = alert.message || alert.Message || "Phát hiện chỉ số bất thường";
+                        const ruleName = alert.ruleName || alert.RuleName || "Cảnh báo hệ thống";
+                        const priority = String(alert.priority || alert.Priority || alert.severity || 'info').toLowerCase();
                         
-                        // HIỂN THỊ THÔNG BÁO TOÀN CỤC (TOAST)
-                        // Vì component này ở App.tsx nên dù user đang ở trang nào cũng sẽ thấy
-                        if (alert.id && alert.id !== lastNotifiedId.current) {
-                            showNotification(finalMessage, type);
-                            lastNotifiedId.current = alert.id;
-                            
-                            // GỌI API ĐÁNH DẤU ĐÃ ĐỌC ĐỂ NGĂN HIỆN LẠI LIÊN TỤC
-                            notificationService.markAsRead(alert.id).catch(err => {
-                                console.error("[FIREBASE GLOBAL] Không thể đánh dấu đã đọc:", err);
-                            });
-                        }
+                        // Chống trùng lặp (ID vẫn quan trọng để markAsRead)
+                        if (id && id === lastNotifiedId.current) return;
+
+                        // Map màu sắc dựa trên priority
+                        let type: 'error' | 'warning' | 'info' | 'success' = 'info';
+                        if (priority === 'high' || priority === 'urgent' || priority === 'critical') type = 'error';
+                        else if (priority === 'medium') type = 'warning';
+
+                        const finalMessage = `🚨 ${ruleName}: ${message}`;
+                        
+                        // HIỂN THỊ THÔNG BÁO TOÀN CỤC (TOAST) có nút xác nhận Thủ công
+                        showNotification(
+                            finalMessage, 
+                            type,
+                            "TÔI ĐÃ XEM",
+                            () => {
+                                notificationService.markAsRead(id).catch(err => {
+                                    console.error("[FIREBASE GLOBAL] Không thể đánh dấu đã đọc:", err);
+                                });
+                            }
+                        );
+
+                        lastNotifiedId.current = id;
                     });
                     unsubscribes.current.push(unsub);
                 });
 
-                console.log(`[FIREBASE GLOBAL] Đã thiết lập lắng nghe Alert cho ${hubs.length} Hubs.`);
+                console.log(`[FIREBASE GLOBAL] Đã thiết lập xong ${hubs.length} Hub listeners.`);
             } catch (err) {
                 console.error("[FIREBASE GLOBAL] Lỗi khi cài đặt thông báo:", err);
             }
@@ -72,7 +76,6 @@ const RealtimeNotificationListener: React.FC = () => {
         setupGlobalListeners();
 
         return () => {
-            console.log("[FIREBASE GLOBAL] Cleanup: Đã gỡ bỏ các listener cảnh báo.");
             unsubscribes.current.forEach(unsub => unsub());
             unsubscribes.current = [];
         };

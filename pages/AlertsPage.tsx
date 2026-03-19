@@ -252,6 +252,16 @@ const AlertsPage: React.FC = () => {
         }
     };
 
+    const handleMarkAsRead = async (id: number) => {
+        try {
+            await notificationService.markAsRead(id);
+            setAlerts(alerts.map(a => a.id === id ? { ...a, isRead: true } : a));
+            showNotification("Cảnh báo đã được đánh dấu đã xem", 'success');
+        } catch (error) {
+            showNotification("Không thể đánh dấu đã xem", 'error');
+        }
+    };
+
     // --- Handlers: Rules ---
 
     const resetRuleForm = () => {
@@ -545,6 +555,15 @@ const AlertsPage: React.FC = () => {
                                             {canManage && (
                                                 <td className="px-6 py-4 text-right">
                                                     <div className="flex justify-end gap-2">
+                                                        {!alert.isRead && (
+                                                            <button
+                                                                onClick={() => handleMarkAsRead(alert.id)}
+                                                                className="p-1.5 bg-emerald-500/10 text-emerald-500 hover:bg-emerald-500 hover:text-white border border-emerald-500/20 rounded-lg transition-all"
+                                                                title="Đánh dấu đã xem"
+                                                            >
+                                                                <span className="material-symbols-outlined text-sm">visibility</span>
+                                                            </button>
+                                                        )}
                                                         <button
                                                             onClick={() => handleDeleteAlert(alert.id)}
                                                             className="p-1.5 bg-rose-500/10 text-rose-500 hover:bg-rose-500 hover:text-white border border-rose-500/20 rounded-lg transition-all"

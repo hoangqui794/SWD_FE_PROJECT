@@ -5,10 +5,12 @@ type NotificationType = 'success' | 'error' | 'warning' | 'info';
 interface Notification {
     message: string;
     type: NotificationType;
+    actionLabel?: string;
+    onAction?: () => void;
 }
 
 interface NotificationContextType {
-    showNotification: (message: string, type: NotificationType) => void;
+    showNotification: (message: string, type: NotificationType, actionLabel?: string, onAction?: () => void) => void;
 }
 
 const NotificationContext = createContext<NotificationContextType | undefined>(undefined);
@@ -37,8 +39,8 @@ export const NotificationProvider: React.FC<NotificationProviderProps> = ({ chil
         }
     }, [notification]);
 
-    const showNotification = (message: string, type: NotificationType) => {
-        setNotification({ message, type });
+    const showNotification = (message: string, type: NotificationType, actionLabel?: string, onAction?: () => void) => {
+        setNotification({ message, type, actionLabel, onAction });
     };
 
     console.log("Rendering NotificationProvider, current notification:", notification);
@@ -117,6 +119,19 @@ export const NotificationProvider: React.FC<NotificationProviderProps> = ({ chil
                                 <p className="text-sm font-bold text-slate-900 dark:text-white leading-tight">
                                     {notification.message}
                                 </p>
+                                
+                                {notification.onAction && (
+                                    <button 
+                                        onClick={() => {
+                                            notification.onAction?.();
+                                            setNotification(null);
+                                        }}
+                                        className="mt-2 self-start px-3 py-1 bg-white/10 dark:bg-white/5 hover:bg-white/20 dark:hover:bg-white/10 border border-slate-200 dark:border-white/20 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all"
+                                        style={{ color: styles.color }}
+                                    >
+                                        {notification.actionLabel || "Đã xem"}
+                                    </button>
+                                )}
                             </div>
 
                             {/* Close Button */}
