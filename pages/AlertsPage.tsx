@@ -34,8 +34,13 @@ const AlertsPage: React.FC = () => {
     const [resolveConfirmId, setResolveConfirmId] = useState<number | null>(null);
     const [sites, setSites] = useState<Site[]>([]);
     const [selectedSiteId, setSelectedSiteId] = useState<number>(0);
+    const [hubs, setHubs] = useState<any[]>([]);
+    const [selectedHubId, setSelectedHubId] = useState<number>(0);
+    const [selectedSeverity, setSelectedSeverity] = useState<string>("");
     const [historySortBy, setHistorySortBy] = useState<'sentAt' | 'severity' | 'isRead'>('sentAt');
     const [historySortOrder, setHistorySortOrder] = useState<'asc' | 'desc'>('desc');
+    const [dateFrom, setDateFrom] = useState<string>("");
+    const [dateTo, setDateTo] = useState<string>("");
 
     // --- Alert Rules State ---
     const [rules, setRules] = useState<AlertRule[]>([]);
@@ -71,6 +76,10 @@ const AlertsPage: React.FC = () => {
                 page: currentPage,
                 pageSize: pageSize,
                 siteId: selectedSiteId > 0 ? selectedSiteId : undefined,
+                hubId: selectedHubId > 0 ? selectedHubId : undefined,
+                severity: selectedSeverity || undefined,
+                from: dateFrom || undefined,
+                to: dateTo || undefined,
                 sortBy: historySortBy,
                 sortOrder: historySortOrder
             });
@@ -132,7 +141,26 @@ const AlertsPage: React.FC = () => {
         }
     };
 
+    const fetchHubsForSite = async (siteId: number) => {
+        try {
+            const siteData = await siteService.getById(siteId);
+            setHubs(siteData.hubs || []);
+        } catch (error) {
+            console.error("Failed to fetch hubs for site", error);
+        }
+    };
+
     // --- Effects ---
+
+    // Fetch hubs when site changes
+    useEffect(() => {
+        if (selectedSiteId > 0) {
+            fetchHubsForSite(selectedSiteId);
+        } else {
+            setHubs([]);
+            setSelectedHubId(0);
+        }
+    }, [selectedSiteId]);
 
     // Fetch data based on active tab
     useEffect(() => {
@@ -144,7 +172,7 @@ const AlertsPage: React.FC = () => {
             fetchRules();
             fetchSensors(); // Load sensors for dropdown
         }
-    }, [activeTab, currentPage, selectedSiteId, historySortBy, historySortOrder]);
+    }, [activeTab, currentPage, selectedSiteId, selectedHubId, selectedSeverity, dateFrom, dateTo, historySortBy, historySortOrder]);
 
     // Real-time updates via SignalR
     useEffect(() => {
@@ -363,74 +391,110 @@ const AlertsPage: React.FC = () => {
                 {/* TAB 1: HISTORY TABLE */}
                 {activeTab === 'history' && !isLoading && (
                     <>
-                        <div className="p-4 border-b border-slate-200 dark:border-border-muted flex flex-wrap gap-2 items-center bg-slate-50/50 dark:bg-zinc-900/40 backdrop-blur-sm">
-                            {/* Search Input - Replicated from image */}
-                            <div className="relative flex-1 min-w-[280px] max-w-sm group">
+                        <div className="p-4 border-b border-slate-200 dark:border-border-muted flex flex-wrap gap-3 items-center bg-slate-50/50 dark:bg-zinc-900/40 backdrop-blur-sm">
+                            {/* Search Input */}
+                            <div className="relative flex-1 min-w-[200px] max-w-xs group">
                                 <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-primary text-sm transition-colors">search</span>
                                 <input
                                     type="text"
-                                    placeholder="Search by name or ID..."
+                                    placeholder="Search..."
                                     value={searchTerm}
                                     onChange={(e) => { setSearchTerm(e.target.value); setCurrentPage(1); }}
                                     className="w-full bg-white dark:bg-zinc-900 border border-slate-200 dark:border-border-muted rounded-lg pl-9 pr-4 py-1.5 text-xs text-slate-900 dark:text-white outline-none focus:ring-1 focus:ring-primary/50 transition-all font-medium placeholder:text-slate-400 dark:placeholder:text-slate-500"
                                 />
                             </div>
 
-                            {/* All Organizations / Sites Dropdown */}
-                            {isAdmin && (
-                                <div className="relative">
-                                    <select
-                                        value={selectedSiteId}
-                                        onChange={(e) => { setSelectedSiteId(Number(e.target.value)); setCurrentPage(1); }}
-                                        className="bg-white dark:bg-zinc-900 border border-slate-200 dark:border-border-muted rounded-lg px-4 py-1.5 text-xs font-bold text-slate-900 dark:text-white outline-none focus:ring-1 focus:ring-primary/50 transition-all appearance-none cursor-pointer pr-10 min-w-[160px]"
-                                    >
-                                        <option value="0">All Organizations</option>
-                                        {sites.map(site => (
-                                            <option key={site.siteId} value={site.siteId}>{site.name}</option>
-                                        ))}
-                                    </select>
-                                    <span className="material-symbols-outlined absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none text-sm">expand_more</span>
-                                </div>
-                            )}
-
-                            {/* Sort By Dropdown - Re-enabled */}
+                            {/* Site Filter */}
                             <div className="relative">
+                                <select
+                                    value={selectedSiteId}
+                                    onChange={(e) => { setSelectedSiteId(Number(e.target.value)); setSelectedHubId(0); setCurrentPage(1); }}
+                                    className="bg-white dark:bg-zinc-900 border border-slate-200 dark:border-border-muted rounded-lg pl-3 pr-10 py-1.5 text-xs font-bold text-slate-900 dark:text-white outline-none focus:ring-1 focus:ring-primary/50 transition-all appearance-none cursor-pointer min-w-[140px]"
+                                >
+                                    <option value="0">All Stores</option>
+                                    {sites.map(site => (
+                                        <option key={site.siteId} value={site.siteId}>{site.name}</option>
+                                    ))}
+                                </select>
+                                <span className="material-symbols-outlined absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none text-sm">location_on</span>
+                            </div>
+
+                            {/* Hub Filter - New */}
+                            <div className="relative">
+                                <select
+                                    disabled={selectedSiteId === 0}
+                                    value={selectedHubId}
+                                    onChange={(e) => { setSelectedHubId(Number(e.target.value)); setCurrentPage(1); }}
+                                    className="bg-white dark:bg-zinc-900 border border-slate-200 dark:border-border-muted rounded-lg pl-3 pr-10 py-1.5 text-xs font-bold text-slate-900 dark:text-white outline-none focus:ring-1 focus:ring-primary/50 transition-all appearance-none cursor-pointer min-w-[140px] disabled:opacity-50"
+                                >
+                                    <option value="0">All Hubs</option>
+                                    {hubs.map(hub => (
+                                        <option key={hub.hubId} value={hub.hubId}>{hub.name}</option>
+                                    ))}
+                                </select>
+                                <span className="material-symbols-outlined absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none text-sm">router</span>
+                            </div>
+
+                            {/* Severity Filter - New */}
+                            <div className="relative">
+                                <select
+                                    value={selectedSeverity}
+                                    onChange={(e) => { setSelectedSeverity(e.target.value); setCurrentPage(1); }}
+                                    className="bg-white dark:bg-zinc-900 border border-slate-200 dark:border-border-muted rounded-lg pl-3 pr-10 py-1.5 text-xs font-bold text-slate-900 dark:text-white outline-none focus:ring-1 focus:ring-primary/50 transition-all appearance-none cursor-pointer min-w-[120px]"
+                                >
+                                    <option value="">All Severity</option>
+                                    <option value="High">High</option>
+                                    <option value="Medium">Medium</option>
+                                    <option value="Low">Low</option>
+                                </select>
+                                <span className="material-symbols-outlined absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none text-sm">error</span>
+                            </div>
+
+                            {/* Sort Controls */}
+                            <div className="flex items-center bg-white dark:bg-zinc-900 border border-slate-200 dark:border-border-muted rounded-lg overflow-hidden group">
                                 <select
                                     value={historySortBy}
                                     onChange={(e) => { setHistorySortBy(e.target.value as any); setCurrentPage(1); }}
-                                    className="bg-white dark:bg-zinc-900 border border-slate-200 dark:border-border-muted rounded-lg px-4 py-1.5 text-xs font-bold text-slate-900 dark:text-white outline-none focus:ring-1 focus:ring-primary/50 transition-all appearance-none cursor-pointer pr-10 min-w-[120px]"
+                                    className="bg-transparent pl-3 pr-8 py-1.5 text-xs font-bold text-slate-900 dark:text-white outline-none appearance-none cursor-pointer border-r border-slate-200 dark:border-border-muted"
                                 >
-                                    <option value="sentAt">Default</option>
+                                    <option value="sentAt">Time</option>
                                     <option value="severity">Severity</option>
-                                    <option value="isRead">Read Status</option>
+                                    <option value="isRead">Status</option>
                                 </select>
-                                <span className="material-symbols-outlined absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none text-sm">expand_more</span>
+                                <button
+                                    onClick={() => { setHistorySortOrder(o => o === 'asc' ? 'desc' : 'asc'); setCurrentPage(1); }}
+                                    className="px-3 py-1.5 text-slate-400 hover:text-primary transition-colors flex items-center"
+                                >
+                                    <span className="material-symbols-outlined text-sm font-bold">
+                                        {historySortOrder === 'asc' ? 'arrow_upward' : 'arrow_downward'}
+                                    </span>
+                                </button>
                             </div>
 
-                            {/* Sort Order Button - Re-enabled */}
-                            <button
-                                onClick={() => { setHistorySortOrder(o => o === 'asc' ? 'desc' : 'asc'); setCurrentPage(1); }}
-                                className="flex items-center gap-2 bg-white dark:bg-zinc-900 border border-slate-200 dark:border-border-muted rounded-lg px-4 py-1.5 text-xs font-black text-slate-900 dark:text-white hover:bg-slate-50 dark:hover:bg-zinc-800 transition-all shadow-sm"
-                            >
-                                <span className="material-symbols-outlined text-sm font-bold">
-                                    {historySortOrder === 'asc' ? 'arrow_upward' : 'arrow_downward'}
-                                </span>
-                                {historySortOrder.toUpperCase()}
-                            </button>
+                            {/* Date Filters - New */}
+                            <div className="flex items-center gap-2 bg-white dark:bg-zinc-900 border border-slate-200 dark:border-border-muted rounded-lg px-2 py-1">
+                                <input 
+                                    type="datetime-local" 
+                                    value={dateFrom}
+                                    onChange={(e) => { setDateFrom(e.target.value); setCurrentPage(1); }}
+                                    className="bg-transparent text-[10px] text-slate-500 outline-none"
+                                />
+                                <span className="text-slate-400">→</span>
+                                <input 
+                                    type="datetime-local" 
+                                    value={dateTo}
+                                    onChange={(e) => { setDateTo(e.target.value); setCurrentPage(1); }}
+                                    className="bg-transparent text-[10px] text-slate-500 outline-none"
+                                />
+                            </div>
 
-                            {/* Refresh Button */}
+                            {/* Refresh */}
                             <button
                                 onClick={() => fetchAlerts()}
-                                title="Refresh Data"
-                                className="w-10 h-8 flex items-center justify-center bg-white dark:bg-zinc-800 border border-slate-200 dark:border-border-muted rounded-lg hover:bg-slate-50 dark:hover:bg-zinc-700 text-slate-400 hover:text-primary transition-all"
+                                className="w-9 h-8 flex items-center justify-center bg-primary text-black rounded-lg hover:bg-primary-light transition-all shadow-lg shadow-primary/20"
                             >
-                                <span className="material-symbols-outlined text-sm">refresh</span>
+                                <span className="material-symbols-outlined text-sm font-bold">refresh</span>
                             </button>
-
-                            <div className="flex-1"></div>
-                            <div className="text-[10px] font-bold text-slate-500 uppercase tracking-widest hidden lg:block">
-                                Showing {totalCount > 0 ? ((currentPage - 1) * pageSize) + 1 : 0}-{Math.min(currentPage * pageSize, totalCount)} / {totalCount}
-                            </div>
                         </div>
 
                         <div className="overflow-x-auto">
