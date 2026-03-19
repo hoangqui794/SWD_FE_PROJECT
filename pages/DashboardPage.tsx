@@ -95,13 +95,18 @@ const DashboardPage: React.FC = () => {
 
   const fetchHubs = useCallback(async () => {
     try {
+      setEnvLoading(true);
       const hubsData = await hubService.getAll();
+      console.warn("📊 [DASHBOARD DEBUG] Danh sách Hubs tải về:", hubsData);
       setHubs(hubsData);
+      
       if (hubsData.length > 0 && !selectedHubId) {
         setSelectedHubId(hubsData[0].hubId);
       }
     } catch (error) {
-      console.error("Failed to fetch hubs", error);
+      console.error("❌ Failed to fetch hubs", error);
+    } finally {
+      setEnvLoading(false);
     }
   }, [selectedHubId]);
 
@@ -116,7 +121,6 @@ const DashboardPage: React.FC = () => {
 
   useEffect(() => {
     fetchStats();
-    fetchHubs();
     fetchHubs();
   }, []);
 

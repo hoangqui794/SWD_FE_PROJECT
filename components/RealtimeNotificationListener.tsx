@@ -13,7 +13,9 @@ const RealtimeNotificationListener: React.FC = () => {
     const { showNotification } = useNotification();
     const { isAuthenticated } = useAuth();
     const unsubscribes = useRef<(() => void)[]>([]);
-    const lastNotifiedId = useRef<number | null>(null);
+    const lastNotifiedId = useRef<number | null>(
+        localStorage.getItem('last_alert_id') ? Number(localStorage.getItem('last_alert_id')) : null
+    );
 
     useEffect(() => {
         if (!isAuthenticated) return;
@@ -62,7 +64,10 @@ const RealtimeNotificationListener: React.FC = () => {
                             }
                         );
 
-                        lastNotifiedId.current = id;
+                        if (id) {
+                            lastNotifiedId.current = id;
+                            localStorage.setItem('last_alert_id', id.toString());
+                        }
                     });
                     unsubscribes.current.push(unsub);
                 });
