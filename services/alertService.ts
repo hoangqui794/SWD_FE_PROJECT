@@ -38,6 +38,7 @@ export interface AlertRuleQueryParams {
     priority?: string;     // Lọc theo mức độ ưu tiên (High, Medium, Low...)
     pageNumber?: number;
     pageSize?: number;
+    hubId?: number; // Lọc theo Hub
     sortBy?: 'name' | 'priority' | 'isActive' | 'sensorId' | 'ruleId'; // default: ruleId
     sortOrder?: 'asc' | 'desc'; // default: asc
 }
@@ -66,18 +67,22 @@ export const alertService = {
     /**
      * Lấy danh sách các quy tắc cảnh báo (Alert Rules) với đầy đủ filter
      */
-    getRules: async (params?: AlertRuleQueryParams): Promise<AlertRule[]> => {
+    getRules: async (params?: AlertRuleQueryParams): Promise<{ data: AlertRule[], totalCount: number }> => {
         const query: Record<string, any> = {};
         if (params?.search) query.search = params.search;
         if (params?.isActive !== undefined) query.isActive = params.isActive;
         if (params?.priority && params.priority !== 'All') query.priority = params.priority;
         if (params?.pageNumber !== undefined) query.pageNumber = params.pageNumber;
         if (params?.pageSize !== undefined) query.pageSize = params.pageSize;
+        if (params?.hubId !== undefined && params.hubId !== 0) query.hubId = params.hubId;
         if (params?.sortBy) query.sortBy = params.sortBy;
         if (params?.sortOrder) query.sortOrder = params.sortOrder;
 
         const response = await apiClient.get<ApiResponse<AlertRule[]>>('/api/alerts/rules', { params: query });
-        return response.data.data;
+        return { 
+            data: response.data.data, 
+            totalCount: response.data.count || response.data.data.length 
+        };
     },
 
     /**
