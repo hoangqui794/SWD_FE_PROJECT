@@ -556,60 +556,98 @@ const DashboardPage: React.FC = () => {
         </div>
       </div>
 
-      <div className="mb-4 flex items-center justify-between">
-        <h4 className="text-lg font-bold text-slate-900 dark:text-white">Priority Sensor Alerts</h4>
-        <Link to="/alerts" className="text-primary text-xs font-bold hover:underline">View All History</Link>
-      </div>
-      <div className="bg-white dark:bg-white/5 rounded-xl border border-slate-200 dark:border-border-muted overflow-hidden transition-colors shadow-sm">
-        <table className="w-full text-left">
-          <thead className="bg-slate-50 dark:bg-zinc-900/50 border-b border-slate-200 dark:border-border-muted text-slate-500 dark:text-slate-400">
-            <tr>
-              <th className="px-6 py-4 text-[11px] font-extrabold uppercase tracking-widest text-inherit">Sensor Name</th>
-              <th className="px-6 py-4 text-[11px] font-extrabold uppercase tracking-widest text-inherit text-center">Value</th>
-              <th className="px-6 py-4 text-[11px] font-extrabold uppercase tracking-widest text-inherit">Status</th>
-              <th className="px-6 py-4 text-[11px] font-extrabold uppercase tracking-widest text-inherit text-right">Update</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-slate-200 dark:divide-border-muted">
-            {alertsLoading ? (
-              <tr><td colSpan={4} className="px-6 py-8 text-center text-slate-500">Loading alerts...</td></tr>
-            ) : recentAlerts.length > 0 ? (
-              recentAlerts.map((alert) => (
-                <tr key={alert.id} className="hover:bg-slate-50 dark:hover:bg-white/5 transition-colors">
-                  <td className="px-6 py-4">
-                    <div className="font-medium text-sm text-slate-900 dark:text-white">{alert.sensorName} ({alert.severity})</div>
-                    <div className="text-[10px] text-slate-500 dark:text-slate-400">{alert.location}</div>
-                  </td>
-                  <td className={`px-6 py-4 text-center font-bold ${alert.severity?.toLowerCase() === 'high' ? 'text-red-500' :
-                    alert.severity?.toLowerCase() === 'medium' ? 'text-yellow-500' :
-                      'text-blue-500'
-                    }`}>
-                    {typeof alert.value === 'number' ? alert.value.toFixed(1) : alert.value} {alert.metricUnit}
-                  </td>
-                  <td className="px-6 py-4">
-                    <div className="flex items-center gap-2">
-                      <div className={`w-2 h-2 rounded-full ${alert.severity?.toLowerCase() === 'high' ? 'bg-red-500 animate-ping' :
-                        alert.severity?.toLowerCase() === 'medium' ? 'bg-yellow-500' :
-                          'bg-blue-500'
-                        }`}></div>
-                      <span className={`text-xs font-medium uppercase ${alert.severity?.toLowerCase() === 'high' ? 'text-red-500' :
-                        alert.severity?.toLowerCase() === 'medium' ? 'text-yellow-500' :
-                          'text-blue-500'
-                        }`}>
-                        {alert.severity}
+      {/* Priority Sensor Alerts Section */}
+      <div className="mt-12 mb-8">
+        <div className="flex items-center justify-between mb-6">
+          <div className="flex items-center gap-3">
+             <div className="w-2 h-8 bg-rose-500 rounded-full"></div>
+             <h4 className="text-xl font-bold text-slate-900 dark:text-white tracking-tight">Priority Sensor Alerts</h4>
+             <div className="hidden sm:flex items-center gap-1.5 px-3 py-1 bg-emerald-500/10 border border-emerald-500/20 rounded-full">
+                <span className="relative flex h-2 w-2">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                  <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+                </span>
+                <span className="text-[10px] font-black text-emerald-500 uppercase tracking-widest">Live Engine</span>
+             </div>
+          </div>
+          <Link 
+            to="/alerts" 
+            className="group flex items-center gap-2 text-primary text-xs font-black uppercase tracking-widest hover:text-primary-light transition-all"
+          >
+            Security Records
+            <span className="material-symbols-outlined text-sm group-hover:translate-x-1 transition-transform">arrow_forward</span>
+          </Link>
+        </div>
+
+        {alertsLoading ? (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {[1, 2, 3, 4].map(i => (
+              <div key={i} className="h-24 bg-slate-100 dark:bg-white/5 animate-pulse rounded-2xl border border-dashed border-slate-200 dark:border-border-muted"></div>
+            ))}
+          </div>
+        ) : recentAlerts.length > 0 ? (
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-1 gap-4">
+            {recentAlerts.map((alert) => {
+              const severity = alert.severity?.toLowerCase() || 'info';
+              const isHigh = severity === 'high' || severity === 'critical';
+              const isMedium = severity === 'medium' || severity === 'warning';
+              
+              const borderStyles = isHigh 
+                ? 'border-rose-500/30 bg-rose-500/[0.03] hover:bg-rose-500/[0.06]' 
+                : isMedium 
+                ? 'border-amber-500/30 bg-amber-500/[0.03] hover:bg-amber-500/[0.06]'
+                : 'border-blue-500/20 bg-blue-500/[0.02] hover:bg-blue-500/[0.05]';
+
+              return (
+                <div 
+                  key={alert.id} 
+                  className={`group flex flex-col sm:flex-row items-center justify-between p-5 rounded-[1.5rem] border ${borderStyles} transition-all duration-300 hover:shadow-xl hover:shadow-primary/5`}
+                >
+                  <div className="flex items-center gap-4 w-full sm:w-auto mb-4 sm:mb-0">
+                    <div className={`w-12 h-12 rounded-2xl flex items-center justify-center shrink-0 ${isHigh ? 'bg-rose-500 text-white shadow-lg shadow-rose-500/20' : isMedium ? 'bg-amber-500 text-white shadow-lg shadow-amber-500/20' : 'bg-primary text-white shadow-lg shadow-primary/20'}`}>
+                      <span className="material-symbols-outlined font-bold">
+                        {isHigh ? 'emergency' : isMedium ? 'warning' : 'notifications'}
                       </span>
                     </div>
-                  </td>
-                  <td className="px-6 py-4 text-right text-xs text-slate-500">
-                    {formatLastUpdate(alert.time)}
-                  </td>
-                </tr>
-              ))
-            ) : (
-              <tr><td colSpan={4} className="px-6 py-8 text-center text-slate-500 italic">No recent alerts found.</td></tr>
-            )}
-          </tbody>
-        </table>
+                    <div>
+                      <h5 className="text-sm font-black text-slate-900 dark:text-white uppercase tracking-tight group-hover:text-primary transition-colors">
+                        {alert.sensorName || (alert.location ? alert.location.split(' - ')[1] : 'Unknown Sensor')}
+                      </h5>
+                      <div className="flex items-center gap-2 mt-1">
+                        <span className="material-symbols-outlined text-[14px] text-slate-400">location_on</span>
+                        <span className="text-[10px] font-bold text-slate-500 dark:text-zinc-500 uppercase tracking-widest">{alert.location}</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-6 w-full sm:w-auto justify-between sm:justify-end">
+                    <div className="hidden md:flex flex-col items-end">
+                      <span className={`text-lg font-black ${isHigh ? 'text-rose-500' : isMedium ? 'text-amber-500' : 'text-primary'}`}>
+                        {alert.value !== null && alert.value !== undefined ? `${Number(alert.value).toFixed(1)}${alert.metricUnit || ''}` : '---'}
+                      </span>
+                      <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Telemetry</span>
+                    </div>
+
+                    <div className="flex flex-col items-end min-w-[100px]">
+                      <div className={`flex items-center gap-1.5 px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-tighter shadow-sm border ${isHigh ? 'bg-rose-500/10 text-rose-500 border-rose-500/20' : isMedium ? 'bg-amber-500/10 text-amber-500 border-amber-500/20' : 'bg-blue-500/10 text-blue-500 border-blue-500/20'}`}>
+                        {alert.severity}
+                      </div>
+                      <span className="text-[10px] font-bold text-slate-400 mt-2 flex items-center gap-1">
+                        <span className="material-symbols-outlined text-[12px]">schedule</span>
+                        {formatLastUpdate(alert.time)}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        ) : (
+          <div className="p-12 text-center bg-slate-50 dark:bg-white/5 rounded-[2rem] border border-dashed border-slate-200 dark:border-border-muted shadow-inner">
+             <span className="material-symbols-outlined text-4xl text-slate-300 dark:text-zinc-700 mb-3 block">verified_user</span>
+             <p className="text-xs font-bold text-slate-400 dark:text-zinc-600 uppercase tracking-widest">Security System Operative • No Recent Threats</p>
+          </div>
+        )}
       </div>
     </Layout>
   );

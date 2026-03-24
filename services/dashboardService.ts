@@ -11,10 +11,10 @@ export interface DashboardStats {
 
 export interface RecentAlert {
     id: number;
-    sensorName: string;
+    sensorName?: string;
     location: string;
-    value: number;
-    metricUnit: string;
+    value?: number | null;
+    metricUnit?: string;
     severity: string;
     status: string;
     time: string;
